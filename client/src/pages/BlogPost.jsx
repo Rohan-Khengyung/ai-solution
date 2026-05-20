@@ -1,40 +1,45 @@
-import { useParams, Link } from 'react-router-dom'
-import { mockBlogPosts } from '../utils/mockData'
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getBlogPostBySlug } from '../services/api';
 
 const BlogPost = () => {
-  const { id } = useParams()
-  const post = mockBlogPosts.find(p => p.id === parseInt(id))
+  const { slug } = useParams();
+  const [post, setPost] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!post) {
-    return <div className="container mx-auto px-4 py-20 text-center">Post not found</div>
-  }
+  useEffect(() => {
+    const fetchPost = async () => {
+      try {
+        const res = await getBlogPostBySlug(slug);
+        setPost(res.data.data);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Post not found');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPost();
+  }, [slug]);
+
+  if (loading) return <div className="container mx-auto px-4 py-12 text-center">Loading...</div>;
+  if (error) return <div className="container mx-auto px-4 py-12 text-center text-red-600">{error}</div>;
+  if (!post) return null;
 
   return (
-    <div>
-      <section className="bg-gray-900 text-white py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">{post.title}</h1>
-          <div className="flex justify-center gap-4 text-gray-300">
-            <span>{post.date}</span>
-            <span>•</span>
-            <span>By {post.author}</span>
-            <span>•</span>
-            <span>{post.readTime}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
-          <img src={post.image} alt={post.title} className="w-full rounded-xl shadow-md mb-8" />
-          <div className="prose prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: post.content }} />
-          <div className="mt-12 pt-6 border-t">
-            <Link to="/blog" className="text-blue-600 font-semibold hover:text-blue-700">← Back to all posts</Link>
-          </div>
-        </div>
-      </section>
+    <div className="container mx-auto px-4 py-12 max-w-3xl">
+      <img src={post.image} alt={post.title} className="w-full h-64 object-cover rounded-lg mb-6" />
+      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+      <div className="text-gray-600 mb-6 flex justify-between">
+        <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+        <span>By {post.author}</span>
+      </div>
+      <div className="prose max-w-none">
+        <p className="text-lg text-gray-700 mb-6">{post.content}</p>
+        {/* If content is HTML, use dangerouslySetInnerHTML */}
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default BlogPost
+export default BlogPost;

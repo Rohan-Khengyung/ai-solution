@@ -1,144 +1,125 @@
-import { useState } from 'react'
-import { mockReviews } from '../utils/mockData'
-import { mockAPI } from '../services/api'
+import { useState, useEffect } from 'react';
+import { getApprovedReviews, submitReview } from '../services/api';
 
 const Testimonials = () => {
-  const [reviews, setReviews] = useState(mockReviews.filter(r => r.status === 'approved'))
-  const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({ name: '', company: '', rating: 5, comment: '' })
-  const [submitted, setSubmitted] = useState(false)
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({ name: '', company: '', rating: 5, comment: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState(null);
+
+  const fetchReviews = async () => {
+    try {
+      const res = await getApprovedReviews();
+      setReviews(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    const newReview = {
-      ...formData,
-      date: new Date().toISOString().split('T')[0],
-      status: 'pending'
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitMsg(null);
+    try {
+      await submitReview(formData);
+      setSubmitMsg({ type: 'success', text: 'Review submitted! It will appear after approval.' });
+      setFormData({ name: '', company: '', rating: 5, comment: '' });
+      fetchReviews(); // refresh list (only approved ones show)
+    } catch (err) {
+      setSubmitMsg({ type: 'error', text: err.response?.data?.message || 'Submission failed' });
+    } finally {
+      setSubmitting(false);
     }
-    await mockAPI.createReview(newReview)
-    setSubmitted(true)
-    setTimeout(() => {
-      setShowForm(false)
-      setSubmitted(false)
-      setFormData({ name: '', company: '', rating: 5, comment: '' })
-    }, 2000)
-  }
+  };
 
-  const stats = {
-    avgRating: (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1),
-    totalReviews: reviews.length,
-    satisfaction: Math.round((reviews.filter(r => r.rating >= 4).length / reviews.length) * 100),
-    globalClients: 500
-  }
+  const averageRating = reviews.length
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : 0;
 
   return (
-    <div>
-      {/* Hero */}
-      <section className="bg-gray-900 text-white py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-blue-400 font-semibold mb-2">CLIENT STORIES</p>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Customer Testimonials</h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            See what our clients say about working with AI Solutions.
-          </p>
-        </div>
-      </section>
+    <div className="container mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold text-center mb-4">Customer Testimonials</h1>
+      <p className="text-center text-gray-600 mb-12">See what our clients say about working with AI Solutions.</p>
 
-      {/* Stats */}
-      <section className="py-12 bg-white border-b">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600">{stats.avgRating}</div>
-              <div className="text-yellow-400 text-xl">★★★★★</div>
-              <div className="text-sm text-gray-600 mt-1">AVERAGE RATING</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600">{stats.totalReviews}+</div>
-              <div className="text-sm text-gray-600 mt-1">VERIFIED REVIEWS</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600">{stats.satisfaction}%</div>
-              <div className="text-sm text-gray-600 mt-1">SATISFACTION RATE</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600">{stats.globalClients}+</div>
-              <div className="text-sm text-gray-600 mt-1">GLOBAL CLIENTS</div>
-            </div>
-          </div>
+      <div className="grid md:grid-cols-4 gap-6 mb-12 text-center">
+        <div className="bg-blue-50 p-4 rounded">
+          <div className="text-3xl font-bold text-blue-600">{averageRating}</div>
+          <div className="text-yellow-500">★★★★★</div>
+          <div>AVERAGE RATING</div>
         </div>
-      </section>
-
-      {/* Write Review Button */}
-      <section className="py-8 bg-gray-50">
-        <div className="container mx-auto px-4 text-center">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-          >
-            Write a Review
-          </button>
+        <div className="bg-blue-50 p-4 rounded">
+          <div className="text-3xl font-bold text-blue-600">{reviews.length}+</div>
+          <div>VERIFIED REVIEWS</div>
         </div>
-      </section>
+        <div className="bg-blue-50 p-4 rounded">
+          <div className="text-3xl font-bold text-blue-600">98%</div>
+          <div>SATISFACTION RATE</div>
+        </div>
+        <div className="bg-blue-50 p-4 rounded">
+          <div className="text-3xl font-bold text-blue-600">500+</div>
+          <div>GLOBAL CLIENTS</div>
+        </div>
+      </div>
 
-      {/* Review Form */}
-      {showForm && (
-        <section className="py-8 bg-white border-b">
-          <div className="container mx-auto px-4 max-w-2xl">
-            <div className="bg-gray-50 rounded-xl p-6 shadow-md">
-              <h3 className="text-2xl font-bold mb-4">Share Your Experience</h3>
-              {submitted ? (
-                <div className="text-center py-8 text-green-600">Thank you! Your review is pending approval.</div>
-              ) : (
-                <form onSubmit={handleSubmit}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Name *</label>
-                    <input type="text" required className="w-full px-3 py-2 border rounded-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Company</label>
-                    <input type="text" className="w-full px-3 py-2 border rounded-lg" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Rating *</label>
-                    <select className="w-full px-3 py-2 border rounded-lg" value={formData.rating} onChange={e => setFormData({...formData, rating: parseInt(e.target.value)})}>
-                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} Stars</option>)}
-                    </select>
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Comment *</label>
-                    <textarea required rows={4} className="w-full px-3 py-2 border rounded-lg" value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})}></textarea>
-                  </div>
-                  <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">Submit Review</button>
-                </form>
-              )}
+      {loading ? (
+        <p className="text-center">Loading reviews...</p>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
+          {reviews.map(review => (
+            <div key={review._id} className="bg-gray-50 p-6 rounded-lg shadow">
+              <div className="text-yellow-500 mb-2">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</div>
+              <p className="text-gray-700 italic">"{review.comment}"</p>
+              <p className="mt-4 font-semibold">– {review.name}, {review.company}</p>
             </div>
-          </div>
-        </section>
+          ))}
+        </div>
       )}
 
-      {/* Reviews List */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {reviews.map(review => (
-              <div key={review.id} className="bg-white rounded-xl p-6 shadow-md">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-bold text-lg">{review.name}</h3>
-                    <p className="text-sm text-gray-500">{review.company}</p>
-                  </div>
-                  <div className="text-yellow-400">{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</div>
-                </div>
-                <p className="text-gray-700 mb-4">"{review.comment}"</p>
-                <p className="text-sm text-gray-400">{review.date}</p>
-              </div>
-            ))}
+      {/* Write a review form */}
+      <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold mb-6">Write a Review</h2>
+        {submitMsg && (
+          <div className={`mb-4 p-3 rounded ${submitMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {submitMsg.text}
           </div>
-        </div>
-      </section>
+        )}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Name *</label>
+            <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border rounded px-3 py-2" />
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Company *</label>
+            <input type="text" name="company" value={formData.company} onChange={handleChange} required className="w-full border rounded px-3 py-2" />
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Rating *</label>
+            <select name="rating" value={formData.rating} onChange={handleChange} className="w-full border rounded px-3 py-2">
+              {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} Star{r > 1 ? 's' : ''}</option>)}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Your Review *</label>
+            <textarea name="comment" rows="4" value={formData.comment} onChange={handleChange} required className="w-full border rounded px-3 py-2"></textarea>
+          </div>
+          <button type="submit" disabled={submitting} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+            {submitting ? 'Submitting...' : 'Submit Review'}
+          </button>
+        </form>
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default Testimonials
+export default Testimonials;

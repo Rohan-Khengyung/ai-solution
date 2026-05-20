@@ -1,40 +1,50 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react';
+import { adminLogin } from '../services/api';
 
-const AuthContext = createContext()
+const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken')
-    if (token) {
-      setUser({ token })
+    const token = localStorage.getItem('adminToken');
+    const adminData = localStorage.getItem('adminData');
+    if (token && adminData) {
+      setUser({ token, ...JSON.parse(adminData) });
     }
-    setLoading(false)
-  }, [])
+    setLoading(false);
+  }, []);
 
   const login = async (username, password) => {
-    // Mock login - replace with actual API call
-    if (username === 'admin' && password === 'admin123') {
-      const token = 'mock-jwt-token'
-      localStorage.setItem('adminToken', token)
-      setUser({ token })
-      return { success: true }
+    setError(null);
+    try {
+      const res = await adminLogin({ username, password });
+      const { token, admin } = res.data;
+      localStorage.setItem('adminToken', token);
+      localStorage.setItem('adminData', JSON.stringify(admin));
+      setUser({ token, ...admin });
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.message || 'Login failed';
+      setError(message);
+      return { success: false, error: message };
     }
-    return { success: false, error: 'Invalid credentials' }
-  }
+  };
 
   const logout = () => {
-    localStorage.removeItem('adminToken')
-    setUser(null)
-  }
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
+    setUser(null);
+    setError(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
       {children}
     </AuthContext.Provider>
-  )
-}
+  );
+};

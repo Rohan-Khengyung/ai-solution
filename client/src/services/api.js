@@ -1,66 +1,46 @@
-import axios from 'axios'
+import axios from 'axios';
+export const getAllBlogsAdmin = () => API.get('/admin/blog');
 
-const API = axios.create({ baseURL: '/api' })
+const API = axios.create({
+  baseURL: 'http://localhost:5000/api',
+  headers: { 'Content-Type': 'application/json' }
+});
 
-// Mock data service for frontend development
-// Replace with actual API calls when backend is ready
-export const mockAPI = {
-  // Enquiries
-  getEnquiries: () => Promise.resolve(mockEnquiries),
-  createEnquiry: (data) => Promise.resolve({ ...data, _id: Date.now(), status: 'new' }),
-  updateEnquiryStatus: (id, status) => Promise.resolve({ id, status }),
-  deleteEnquiry: (id) => Promise.resolve({ id }),
+// Add token to requests if exists
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-  // Reviews
-  getReviews: () => Promise.resolve(mockReviews),
-  createReview: (data) => Promise.resolve({ ...data, _id: Date.now(), status: 'pending' }),
-  approveReview: (id) => Promise.resolve({ id, status: 'approved' }),
-  deleteReview: (id) => Promise.resolve({ id }),
+// ========== PUBLIC ENDPOINTS ==========
+export const submitEnquiry = (data) => API.post('/enquiries', data);
+export const getApprovedReviews = () => API.get('/reviews');
+export const submitReview = (data) => API.post('/reviews', data);
+export const getBlogPosts = (page = 1) => API.get(`/blog?page=${page}&limit=6`);
+export const getBlogPostBySlug = (slug) => API.get(`/blog/${slug}`);
+export const getGalleryItems = () => API.get('/gallery');
+export const getContactDetails = () => API.get('/contact');
 
-  // Blog Posts
-  getBlogPosts: () => Promise.resolve(mockBlogPosts),
-  createBlogPost: (data) => Promise.resolve({ ...data, _id: Date.now(), date: new Date().toISOString() }),
-  updateBlogPost: (id, data) => Promise.resolve({ id, ...data }),
-  deleteBlogPost: (id) => Promise.resolve({ id }),
+// ========== ADMIN ENDPOINTS ==========
+export const adminLogin = (credentials) => API.post('/admin/login', credentials);
+export const getEnquiries = (params) => API.get('/admin/enquiries', { params });
+export const updateEnquiryStatus = (id, status) => API.put(`/admin/enquiries/${id}/status`, { status });
+export const deleteEnquiry = (id) => API.delete(`/admin/enquiries/${id}`);
 
-  // Gallery
-  getGalleryItems: () => Promise.resolve(mockGallery),
-  createGalleryItem: (data) => Promise.resolve({ ...data, _id: Date.now() }),
-  deleteGalleryItem: (id) => Promise.resolve({ id }),
+export const getAllReviews = (status) => API.get('/admin/reviews', { params: { status } });
+export const approveReview = (id) => API.put(`/admin/reviews/${id}/approve`);
+export const deleteReview = (id) => API.delete(`/admin/reviews/${id}`);
 
-  // Contact Details
-  getContactDetails: () => Promise.resolve(mockContactDetails),
-  updateContactDetails: (data) => Promise.resolve(data),
-}
+export const createBlogPost = (data) => API.post('/admin/blog', data);
+export const updateBlogPost = (id, data) => API.put(`/admin/blog/${id}`, data);
+export const deleteBlogPost = (id) => API.delete(`/admin/blog/${id}`);
 
-// Mock Data
-const mockEnquiries = [
-  { _id: '1', name: 'John Smith', email: 'john@example.com', phone: '+1 555 000 0000', company: 'Tech Corp', country: 'United States', jobTitle: 'CTO', jobDetails: 'Need AI integration', date: '2026-05-10', status: 'new' },
-  { _id: '2', name: 'Sarah Johnson', email: 'sarah@healthcare.com', phone: '+44 20 7946 0000', company: 'Healthcare Plus', country: 'United Kingdom', jobTitle: 'Product Manager', jobDetails: 'Automation solution required', date: '2026-05-12', status: 'processed' },
-]
+export const addGalleryItem = (data) => API.post('/admin/gallery', data);
+export const deleteGalleryItem = (id) => API.delete(`/admin/gallery/${id}`);
 
-const mockReviews = [
-  { _id: '1', name: 'Michael Chen', company: 'InnovateTech', rating: 5, comment: 'Outstanding AI solutions! Boosted our efficiency by 200%', date: '2026-04-15', status: 'approved' },
-  { _id: '2', name: 'Emma Rodriguez', company: 'Global Finance', rating: 4, comment: 'Great platform, very responsive support team', date: '2026-04-20', status: 'approved' },
-  { _id: '3', name: 'David Kim', company: 'StartupHub', rating: 5, comment: 'The automation tools saved us countless hours', date: '2026-05-01', status: 'pending' },
-]
+export const updateContactDetails = (data) => API.put('/admin/contact', data);
 
-const mockBlogPosts = [
-  { _id: '1', title: 'The Future of AI in Enterprise', excerpt: 'Discover how AI is transforming business operations...', content: 'Full content here...', image: 'https://picsum.photos/800/400?random=1', date: '2026-05-01', author: 'AI Solutions Team' },
-  { _id: '2', title: '5 Ways to Automate Your Workflow', excerpt: 'Increase productivity with these automation tips...', content: 'Full content here...', image: 'https://picsum.photos/800/400?random=2', date: '2026-04-25', author: 'AI Solutions Team' },
-]
-
-const mockGallery = [
-  { _id: '1', title: 'AI Summit 2026', image: 'https://picsum.photos/400/300?random=10', category: 'event' },
-  { _id: '2', title: 'Product Launch', image: 'https://picsum.photos/400/300?random=11', category: 'product' },
-  { _id: '3', title: 'Team Workshop', image: 'https://picsum.photos/400/300?random=12', category: 'team' },
-]
-
-const mockContactDetails = {
-  email: 'hello@aisolutions.com',
-  phone: '+1 (800) 555-0199',
-  address: '100 Market St, San Francisco, CA',
-  hours: 'Mon-Fri, 9am–6pm PST'
-}
-
-export default API
+export default API;

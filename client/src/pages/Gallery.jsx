@@ -1,49 +1,55 @@
-import { useState } from 'react'
-import { mockGallery } from '../utils/mockData'
+import { useState, useEffect } from 'react';
+import { getGalleryItems } from '../services/api';
 
 const Gallery = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const categories = ['all', ...new Set(mockGallery.map(item => item.category))]
-  const filtered = selectedCategory === 'all' ? mockGallery : mockGallery.filter(item => item.category === selectedCategory)
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState('');
+
+  useEffect(() => {
+    const fetchGallery = async () => {
+      try {
+        const params = category ? { category } : {};
+        const res = await getGalleryItems({ params });
+        setItems(res.data.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGallery();
+  }, [category]);
 
   return (
-    <div>
-      <section className="bg-gray-900 text-white py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Photo Gallery</h1>
-          <p className="text-xl text-gray-300">Explore moments from our journey and events</p>
-        </div>
-      </section>
+    <div className="container mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold text-center mb-4">Photo Gallery</h1>
+      <p className="text-center text-gray-600 mb-8">Highlights from past events and conferences</p>
+      
+      <div className="flex justify-center gap-4 mb-8">
+        <button onClick={() => setCategory('')} className={`px-4 py-2 rounded ${!category ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>All</button>
+        <button onClick={() => setCategory('event')} className={`px-4 py-2 rounded ${category === 'event' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Events</button>
+        <button onClick={() => setCategory('product')} className={`px-4 py-2 rounded ${category === 'product' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Products</button>
+        <button onClick={() => setCategory('team')} className={`px-4 py-2 rounded ${category === 'team' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Team</button>
+      </div>
 
-      <section className="py-12 bg-white border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map(cat => (
-              <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-4 py-2 rounded-full capitalize transition ${selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {filtered.map(item => (
-              <div key={item.id} className="group relative overflow-hidden rounded-xl shadow-md bg-white">
-                <img src={item.image} alt={item.title} className="w-full h-64 object-cover transition-transform group-hover:scale-105" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg">{item.title}</h3>
-                  <p className="text-sm text-gray-500 capitalize">{item.category}</p>
-                </div>
+      {loading ? (
+        <p className="text-center">Loading gallery...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {items.map(item => (
+            <div key={item._id} className="bg-white rounded-lg shadow overflow-hidden">
+              <img src={item.image} alt={item.title} className="w-full h-64 object-cover" />
+              <div className="p-4">
+                <h3 className="text-lg font-semibold">{item.title}</h3>
+                {item.description && <p className="text-gray-600 text-sm">{item.description}</p>}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      </section>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default Gallery
+export default Gallery;

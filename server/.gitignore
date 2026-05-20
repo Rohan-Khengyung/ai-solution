@@ -1,0 +1,10 @@
+node_modules/
+uploads/
+*.log
+.DS_Store
+dist/
+build/
+
+# Environment variables
+.env
+*.env

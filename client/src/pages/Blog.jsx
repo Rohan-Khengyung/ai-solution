@@ -1,42 +1,59 @@
-import { Link } from 'react-router-dom'
-import { mockBlogPosts } from '../utils/mockData'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getBlogPosts } from '../services/api';
 
 const Blog = () => {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchPosts = async (pageNum) => {
+    setLoading(true);
+    try {
+      const res = await getBlogPosts(pageNum);
+      setPosts(res.data.data);
+      setTotalPages(Math.ceil(res.data.total / 6));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts(page);
+  }, [page]);
+
   return (
-    <div>
-      <section className="bg-gray-900 text-white py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Our Blog</h1>
-          <p className="text-xl text-gray-300">Insights, news, and updates from the AI world</p>
+    <div className="container mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold text-center mb-12">Latest Articles</h1>
+      {loading ? (
+        <p className="text-center">Loading...</p>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {posts.map(post => (
+            <div key={post._id} className="bg-white rounded-lg shadow overflow-hidden">
+              <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
+              <div className="p-4">
+                <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
+                <p className="text-gray-600 text-sm mb-2">{new Date(post.createdAt).toLocaleDateString()}</p>
+                <p className="text-gray-700 mb-4">{post.excerpt}</p>
+                <Link to={`/blog/${post.slug}`} className="text-blue-600 hover:underline">Read article →</Link>
+              </div>
+            </div>
+          ))}
         </div>
-      </section>
-
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {mockBlogPosts.map(post => (
-              <article key={post.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
-                <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
-                <div className="p-6">
-                  <div className="flex items-center text-sm text-gray-500 mb-3">
-                    <span>{post.date}</span>
-                    <span className="mx-2">•</span>
-                    <span>{post.readTime}</span>
-                  </div>
-                  <h2 className="text-xl font-bold mb-2">{post.title}</h2>
-                  <p className="text-gray-600 mb-4">{post.excerpt}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">By {post.author}</span>
-                    <Link to={`/blog/${post.id}`} className="text-blue-600 font-semibold hover:text-blue-700">Read More →</Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+      )}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-8 gap-2">
+          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
+          <span className="px-3 py-1">Page {page} of {totalPages}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
         </div>
-      </section>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default Blog
+export default Blog;
