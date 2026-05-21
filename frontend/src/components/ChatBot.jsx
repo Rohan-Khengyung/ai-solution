@@ -86,8 +86,8 @@ const ChatBot = () => {
         <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-white rounded-lg shadow-2xl z-40 flex flex-col border">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
-            <h3 className="font-semibold">AI Assistant</h3>
-            <p className="text-xs opacity-90">Powered by Groq Llama 3.1</p>
+            <h3 className="font-semibold">Aria</h3>
+            <p className="text-xs opacity-90">AI Solutions Assistant · Online</p> { /* Powered by Groq Llama 3.1 */ }
           </div>
           
           {/* Messages Area */}
