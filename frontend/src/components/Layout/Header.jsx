@@ -8,10 +8,19 @@ const Header = () => {
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg"></div>
-            <span className="font-bold text-xl text-gray-900">AI SOLUTIONS</span>
+          {/* Logo - New design with icon and "Ando" */}
+          <Link to="/" className="flex items-center space-x-2 group">
+            <div className="relative">
+              {/* Abstract AI-inspired icon */}
+              <svg className="w-8 h-8 text-blue-600 transition-transform group-hover:scale-105" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 4L4 10V22L16 28L28 22V10L16 4Z" stroke="currentColor" strokeWidth="1.5" fill="white"/>
+                <path d="M16 16L10 13M16 16L22 13M16 16V22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="16" cy="10" r="2" fill="currentColor"/>
+                <path d="M10 19L13 22L10 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M22 19L19 22L22 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="font-bold text-xl text-gray-900 tracking-tight">Ando</span>
           </Link>
 
           {/* Desktop Navigation */}
