@@ -1,4 +1,3 @@
-// src/pages/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -15,8 +14,8 @@ import {
   deleteGalleryItem,
   updateContactDetails,
   getContactDetails,
-  getBlogPosts,
   getGalleryItems,
+  getAllBlogsAdmin,
 } from '../services/api';
 
 const AdminDashboard = () => {
@@ -73,6 +72,7 @@ const AdminDashboard = () => {
       setEnquiries(res.data.data);
     } catch (err) {
       console.error(err);
+      alert('Failed to load enquiries');
     } finally {
       setLoading(false);
     }
@@ -85,21 +85,18 @@ const AdminDashboard = () => {
       setReviews(res.data.data);
     } catch (err) {
       console.error(err);
+      alert('Failed to load reviews');
     }
   };
 
+  // FIXED: Use admin endpoint to get ALL blog posts (including unpublished)
   const fetchBlogs = async () => {
     try {
-      // Admin endpoint for all blogs (including unpublished)
-      const res = await getBlogPosts(1, 100); // use public route but gets only published; for admin we need a separate endpoint. For simplicity, we'll use public but add an admin-only later. Here we'll call public but admin can see all if we add an admin route. I'll implement a call to /admin/blog (you should add that route in backend). For now use public and we'll see published only.
-      // Better: create admin GET /admin/blog in backend. I'll assume it exists or we use public and manage.
-      // To keep demo working, I'll use a mock fetch or assume backend has admin GET /admin/blog.
-      // Since we only have create/update/delete, we'll also need a fetch method. I'll add a function to get all blogs from admin endpoint.
-      // For brevity, I'll manually call the public endpoint (only published). In production add GET /admin/blog.
-      const resBlogs = await getBlogPosts(1, 100);
-      setBlogPosts(resBlogs.data.data);
+      const res = await getAllBlogsAdmin();
+      setBlogPosts(res.data.data);
     } catch (err) {
       console.error(err);
+      alert('Failed to load blog posts');
     }
   };
 
@@ -109,6 +106,7 @@ const AdminDashboard = () => {
       setGalleryItems(res.data.data);
     } catch (err) {
       console.error(err);
+      alert('Failed to load gallery');
     }
   };
 
@@ -118,6 +116,7 @@ const AdminDashboard = () => {
       setContact(res.data.data);
     } catch (err) {
       console.error(err);
+      alert('Failed to load contact details');
     }
   };
 
@@ -138,41 +137,78 @@ const AdminDashboard = () => {
 
   // Enquiry handlers
   const handleStatusChange = async (id, status) => {
-    await updateEnquiryStatus(id, status);
-    fetchEnquiries();
+    try {
+      await updateEnquiryStatus(id, status);
+      fetchEnquiries();
+    } catch (err) {
+      alert('Failed to update status');
+    }
   };
 
   const handleDeleteEnquiry = async (id) => {
     if (window.confirm('Delete this enquiry?')) {
-      await deleteEnquiry(id);
-      fetchEnquiries();
+      try {
+        await deleteEnquiry(id);
+        fetchEnquiries();
+      } catch (err) {
+        alert('Failed to delete enquiry');
+      }
     }
   };
 
   // Review handlers
   const handleApproveReview = async (id) => {
-    await approveReview(id);
-    fetchReviews();
+    try {
+      await approveReview(id);
+      fetchReviews();
+    } catch (err) {
+      alert('Failed to approve review');
+    }
   };
 
   const handleDeleteReview = async (id) => {
     if (window.confirm('Delete this review?')) {
-      await deleteReview(id);
-      fetchReviews();
+      try {
+        await deleteReview(id);
+        fetchReviews();
+      } catch (err) {
+        alert('Failed to delete review');
+      }
     }
   };
 
-  // Blog handlers
+  // Blog handlers with proper error handling
   const handleBlogSubmit = async (e) => {
     e.preventDefault();
-    if (editingBlog) {
-      await updateBlogPost(editingBlog._id, blogForm);
-      setEditingBlog(null);
-    } else {
-      await createBlogPost(blogForm);
+    // Simple validation
+    if (!blogForm.title || !blogForm.excerpt || !blogForm.content || !blogForm.image) {
+      alert('Please fill in all required fields: Title, Excerpt, Content, Image URL');
+      return;
     }
-    setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true });
-    fetchBlogs();
+    try {
+      if (editingBlog) {
+        await updateBlogPost(editingBlog._id, blogForm);
+        alert('Blog updated successfully!');
+      } else {
+        await createBlogPost(blogForm);
+        alert('Blog published successfully!');
+      }
+      // Reset form and refresh list
+      setBlogForm({
+        title: '',
+        excerpt: '',
+        content: '',
+        image: '',
+        author: 'AI Solutions Team',
+        published: true,
+      });
+      setEditingBlog(null);
+      await fetchBlogs();
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.message || 'Failed to save blog post';
+      alert(`Error: ${message}`);
+    }
   };
 
   const handleEditBlog = (post) => {
@@ -189,31 +225,53 @@ const AdminDashboard = () => {
 
   const handleDeleteBlog = async (id) => {
     if (window.confirm('Delete this blog post?')) {
-      await deleteBlogPost(id);
-      fetchBlogs();
+      try {
+        await deleteBlogPost(id);
+        alert('Blog deleted');
+        await fetchBlogs();
+      } catch (err) {
+        alert('Failed to delete blog');
+      }
     }
   };
 
   // Gallery handlers
   const handleGallerySubmit = async (e) => {
     e.preventDefault();
-    await addGalleryItem(galleryForm);
-    setGalleryForm({ title: '', image: '', category: 'event', description: '' });
-    fetchGallery();
+    if (!galleryForm.title || !galleryForm.image) {
+      alert('Title and Image URL are required');
+      return;
+    }
+    try {
+      await addGalleryItem(galleryForm);
+      setGalleryForm({ title: '', image: '', category: 'event', description: '' });
+      await fetchGallery();
+      alert('Gallery item added');
+    } catch (err) {
+      alert('Failed to add gallery item');
+    }
   };
 
   const handleDeleteGallery = async (id) => {
     if (window.confirm('Delete this gallery item?')) {
-      await deleteGalleryItem(id);
-      fetchGallery();
+      try {
+        await deleteGalleryItem(id);
+        await fetchGallery();
+      } catch (err) {
+        alert('Failed to delete gallery item');
+      }
     }
   };
 
   // Contact handler
   const handleContactUpdate = async (e) => {
     e.preventDefault();
-    await updateContactDetails(contact);
-    alert('Contact details updated successfully!');
+    try {
+      await updateContactDetails(contact);
+      alert('Contact details updated successfully!');
+    } catch (err) {
+      alert('Failed to update contact details');
+    }
   };
 
   return (
@@ -417,7 +475,7 @@ const AdminDashboard = () => {
               <form onSubmit={handleBlogSubmit} className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Title"
+                  placeholder="Title *"
                   value={blogForm.title}
                   onChange={(e) => setBlogForm({ ...blogForm, title: e.target.value })}
                   required
@@ -425,14 +483,14 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Excerpt (short summary)"
+                  placeholder="Excerpt (short summary) *"
                   value={blogForm.excerpt}
                   onChange={(e) => setBlogForm({ ...blogForm, excerpt: e.target.value })}
                   required
                   className="w-full border rounded px-3 py-2"
                 />
                 <textarea
-                  placeholder="Content (full HTML or markdown)"
+                  placeholder="Content (full HTML or markdown) *"
                   rows="6"
                   value={blogForm.content}
                   onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })}
@@ -441,7 +499,7 @@ const AdminDashboard = () => {
                 ></textarea>
                 <input
                   type="text"
-                  placeholder="Image URL"
+                  placeholder="Image URL *"
                   value={blogForm.image}
                   onChange={(e) => setBlogForm({ ...blogForm, image: e.target.value })}
                   required
@@ -449,7 +507,7 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Author"
+                  placeholder="Author (optional)"
                   value={blogForm.author}
                   onChange={(e) => setBlogForm({ ...blogForm, author: e.target.value })}
                   className="w-full border rounded px-3 py-2"
@@ -460,7 +518,7 @@ const AdminDashboard = () => {
                     checked={blogForm.published}
                     onChange={(e) => setBlogForm({ ...blogForm, published: e.target.checked })}
                   />
-                  Published
+                  Published (visible on the website)
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -499,9 +557,13 @@ const AdminDashboard = () => {
                   <div>
                     <h3 className="font-bold text-lg">{post.title}</h3>
                     <p className="text-gray-600 text-sm">{post.excerpt}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(post.createdAt).toLocaleDateString()} | {post.author}
-                    </p>
+                    <div className="flex gap-3 text-xs text-gray-500 mt-1">
+                      <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                      <span>By {post.author}</span>
+                      <span className={post.published ? 'text-green-600' : 'text-red-600'}>
+                        {post.published ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -520,7 +582,7 @@ const AdminDashboard = () => {
                 </div>
               ))}
               {blogPosts.length === 0 && (
-                <p className="text-center text-gray-500 py-4">No blog posts yet.</p>
+                <p className="text-center text-gray-500 py-4">No blog posts yet. Create one above.</p>
               )}
             </div>
           </div>
@@ -534,7 +596,7 @@ const AdminDashboard = () => {
               <form onSubmit={handleGallerySubmit} className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Title"
+                  placeholder="Title *"
                   value={galleryForm.title}
                   onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
                   required
@@ -542,7 +604,7 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Image URL"
+                  placeholder="Image URL *"
                   value={galleryForm.image}
                   onChange={(e) => setGalleryForm({ ...galleryForm, image: e.target.value })}
                   required

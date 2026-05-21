@@ -98,5 +98,5 @@ module.exports = {
   createPost,
   updatePost,
   deletePost,
-  getAllBlogsAdmin,   // <-- export new function
+  getAllBlogsAdmin,  
 };
