@@ -8,7 +8,7 @@ const Header = () => {
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo - design with icon and "Ando" */}
+          {/* Logo - design with icon and "AI-Solutions" */}
           <Link to="/" className="flex items-center space-x-2 group">
             <div className="relative">
               {/* Abstract AI-inspired icon */}
@@ -20,7 +20,7 @@ const Header = () => {
                 <path d="M22 19L19 22L22 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className="font-bold text-xl text-gray-900 tracking-tight">Ando</span>
+            <span className="font-bold text-xl text-gray-900 tracking-tight">AI-Solutions</span>
           </Link>
 
           {/* Desktop Navigation */}

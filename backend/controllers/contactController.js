@@ -8,8 +8,8 @@ const getContactDetails = async (req, res) => {
       // Return default if none exists
       contact = {
         email: 'hello@aisolutions.com',
-        phone: '+1 (800) 555-0199',
-        address: '100 Market St, San Francisco, CA',
+        phone: '+1 (977) 555-01399',
+        address: 'Kathmandu, Nepal',
         hours: 'Mon-Fri, 9am–6pm PST'
       };
     }

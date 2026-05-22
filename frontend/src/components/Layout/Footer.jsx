@@ -15,7 +15,7 @@ const Footer = () => {
                   <circle cx="16" cy="10" r="2" fill="currentColor"/>
                 </svg>
               </div>
-              <span className="font-bold text-xl text-white tracking-tight">Ando</span>
+              <span className="font-bold text-xl text-white tracking-tight">AI-Solutions</span>
             </Link>
             <p className="text-sm">AI-powered solutions for the modern digital enterprise.</p>
           </div>
@@ -54,7 +54,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-sm text-center">
-          <p>© 2026 Ando. All rights reserved.</p>
+          <p>© 2026 A. All rights reserved.</p>
           <div className="mt-2 space-x-4">
             <Link to="/privacy" className="hover:text-blue-400">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-blue-400">Terms of Service</Link>

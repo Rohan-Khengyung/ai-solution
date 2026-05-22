@@ -34,7 +34,7 @@ const AdminLogin = () => {
               <path d="M10 19L13 22L10 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M22 19L19 22L22 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span className="font-bold text-2xl md:text-3xl text-white tracking-tight">Ando</span>
+            <span className="font-bold text-2xl md:text-3xl text-white tracking-tight">AI-Solutions</span>
           </div>
 
           {/* Admin Portal heading - size reduced */}
@@ -66,7 +66,7 @@ const AdminLogin = () => {
 
         <div className="mt-8 pt-6 border-t border-blue-500/30">
           <p className="text-blue-200 text-xs">
-            © 2026 Ando. All rights reserved. Authorised personnel only.
+            © 2026 AI-Solutions. All rights reserved. Authorised personnel only.
           </p>
         </div>
       </div>
@@ -133,7 +133,7 @@ const AdminLogin = () => {
                 <path d="M10 19L13 22L10 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M22 19L19 22L22 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <span className="text-xs text-gray-400 font-semibold">Ando</span>
+              <span className="text-xs text-gray-400 font-semibold">AI-Solutions</span>
             </div>
           </div>
         </div>
