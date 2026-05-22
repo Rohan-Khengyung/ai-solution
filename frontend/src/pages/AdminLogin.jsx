@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const AdminLogin = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login, error } = useAuth();
+  const { login, error: authError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -20,122 +22,135 @@ const AdminLogin = () => {
     setLoading(false);
   };
 
+  const error = authError;
+
   return (
-    <div className="fixed inset-0 w-full h-full flex">
-      {/* Left Panel - hidden on mobile, visible on medium screens and up */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-800 to-indigo-900 text-white flex-col justify-between p-8 md:p-12 lg:p-16 overflow-y-auto">
+    <div className="min-h-screen flex">
+      {/* Left Panel - Brand / Info */}
+      <div className="hidden lg:flex w-[45%] bg-gray-900 flex-col justify-between p-14">
         <div>
-          {/* Logo */}
-          <div className="flex items-center space-x-2 group mb-8 md:mb-12">
-            <svg className="w-8 h-8 text-blue-400 transition-transform group-hover:scale-105" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16 4L4 10V22L16 28L28 22V10L16 4Z" stroke="currentColor" strokeWidth="1.5" fill="white"/>
-              <path d="M16 16L10 13M16 16L22 13M16 16V22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="16" cy="10" r="2" fill="currentColor"/>
-              <path d="M10 19L13 22L10 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M22 19L19 22L22 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="font-bold text-2xl md:text-3xl text-white tracking-tight">AI-Solutions</span>
+          <div className="flex items-center gap-3 mb-16">
+            <div className="w-8 h-8 border-2 border-white flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
+                <rect x="9" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
+                <rect x="1" y="9" width="6" height="6" stroke="#0055FF" strokeWidth="1.5" />
+                <rect x="9" y="9" width="6" height="6" stroke="white" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <span className="text-xs font-bold tracking-widest uppercase text-white">AI Solutions</span>
           </div>
 
-          {/* Admin Portal heading - size reduced */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-            Admin<br />Portal
-          </h1>
-          <p className="text-blue-100 text-base md:text-lg mt-6 md:mt-8 mb-8 leading-relaxed max-w-md">
-            Secure access to manage customer enquiries, track submissions, and monitor platform activity.
-          </p>
-          <ul className="space-y-3 md:space-y-4 text-base md:text-lg">
-            <li className="flex items-start gap-2 md:gap-3">
-              <span className="text-blue-300 text-xl">•</span>
-              <span>Manage customer enquiries</span>
-            </li>
-            <li className="flex items-start gap-2 md:gap-3">
-              <span className="text-blue-300 text-xl">•</span>
-              <span>Search, filter and sort submissions</span>
-            </li>
-            <li className="flex items-start gap-2 md:gap-3">
-              <span className="text-blue-300 text-xl">•</span>
-              <span>Update enquiry statuses</span>
-            </li>
-            <li className="flex items-start gap-2 md:gap-3">
-              <span className="text-blue-300 text-xl">•</span>
-              <span>Bulk actions and data export</span>
-            </li>
+          <div className="mb-12">
+            <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
+              Admin<br />Portal
+            </h1>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Secure access to manage customer enquiries, track submissions, and monitor platform activity.
+            </p>
+          </div>
+
+          <ul className="space-y-4">
+            {[
+              'Manage customer enquiries',
+              'Search, filter and sort submissions',
+              'Update enquiry statuses',
+              'Bulk actions and data export',
+            ].map((item) => (
+              <li key={item} className="flex items-center gap-3 text-sm text-gray-400">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#0055FF] flex-shrink-0" />
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-blue-500/30">
-          <p className="text-blue-200 text-xs">
-            © 2026 AI-Solutions. All rights reserved. Authorised personnel only.
+        <div className="border-t border-gray-700 pt-8">
+          <p className="text-xs text-gray-600">
+            © 2026 AI Solutions. All rights reserved. Authorised personnel only.
           </p>
         </div>
       </div>
 
-      {/* Right Panel - full width on mobile, half on desktop */}
-      <div className="w-full md:w-1/2 bg-white flex flex-col justify-center overflow-y-auto p-6 sm:p-8 md:p-12 lg:p-16">
-        <div className="max-w-md mx-auto w-full">
-          <div className="mb-8 md:mb-10">
-            <h2 className="text-blue-600 text-sm font-bold tracking-wider">ADMIN ACCESS</h2>
-            {/* Sign In heading - size reduced */}
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mt-1">Sign In</h3>
-            <p className="text-gray-500 text-sm md:text-base mt-3">
-              Enter your credentials to access the admin panel.
-            </p>
+      {/* Right Panel - Login Form */}
+      <div className="flex-1 bg-white flex items-center justify-center px-8">
+        <div className="w-full max-w-md -mt-[70px]">
+          {/* Mobile logo (visible on small screens) */}
+          <div className="flex items-center gap-2 mb-10 lg:hidden">
+            <div className="w-7 h-7 border-2 border-gray-900 flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <rect x="0.5" y="0.5" width="5" height="5" stroke="#111827" strokeWidth="1" />
+                <rect x="6.5" y="0.5" width="5" height="5" stroke="#111827" strokeWidth="1" />
+                <rect x="0.5" y="6.5" width="5" height="5" stroke="#0055FF" strokeWidth="1" />
+                <rect x="6.5" y="6.5" width="5" height="5" stroke="#111827" strokeWidth="1" />
+              </svg>
+            </div>
+            <span className="text-xs font-bold tracking-widest uppercase">AI Solutions</span>
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md mb-5 text-sm">
-              {error}
-            </div>
-          )}
+          <p className="text-xs font-bold uppercase tracking-widest text-[#0055FF] mb-3">Admin Access</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
+          <p className="text-sm text-gray-500 mb-10">Enter your credentials to access the admin panel.</p>
 
-          <form onSubmit={handleSubmit}>
-            <div className="mb-5">
-              <label className="block text-gray-700 text-xs font-semibold mb-1">USERNAME</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                required
-                autoComplete="username"
-              />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Username field */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  autoComplete="username"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-white text-sm text-gray-900 focus:outline-none focus:border-[#0055FF] transition-colors duration-150"
+                />
+              </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-gray-700 text-xs font-semibold mb-1">PASSWORD</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                required
-                autoComplete="current-password"
-              />
+            {/* Password field with toggle visibility */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 bg-white text-sm text-gray-900 focus:outline-none focus:border-[#0055FF] transition-colors duration-150"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="border border-gray-300 bg-gray-50 p-3 text-sm text-gray-700">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#0055FF] text-white py-3.5 text-sm font-bold hover:bg-[#0044CC] transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {loading ? 'Signing In...' : 'Sign In to Admin Panel'}
             </button>
           </form>
-
-          {/* Subtle brand on mobile */}
-          <div className="mt-8 text-center md:hidden">
-            <div className="flex items-center justify-center space-x-2">
-              <svg className="w-5 h-5 text-blue-600" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 4L4 10V22L16 28L28 22V10L16 4Z" stroke="currentColor" strokeWidth="1.5" fill="white"/>
-                <path d="M16 16L10 13M16 16L22 13M16 16V22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="16" cy="10" r="2" fill="currentColor"/>
-                <path d="M10 19L13 22L10 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M22 19L19 22L22 25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="text-xs text-gray-400 font-semibold">AI-Solutions</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
