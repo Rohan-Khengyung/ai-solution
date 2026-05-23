@@ -27,9 +27,9 @@ import {
 const AdminDashboard = () => {
   const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');  // ← unchanged
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // --- All original state (unchanged) ---
+  // --- State ---
   const [enquiries, setEnquiries] = useState([]);
   const [enquiryFilter, setEnquiryFilter] = useState('');
   const [enquirySearch, setEnquirySearch] = useState('');
@@ -49,7 +49,7 @@ const AdminDashboard = () => {
     email: '', phone: '', address: '', hours: '',
   });
 
-  // --- All original fetch functions (unchanged) ---
+  // --- Fetch functions ---
   const fetchEnquiries = async () => {
     try {
       const params = {};
@@ -94,7 +94,7 @@ const AdminDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, enquiryFilter, enquirySearch, reviewFilter]);
 
-  // --- All original handlers (unchanged) ---
+  // --- Handlers ---
   const handleStatusChange = async (id, status) => {
     try { await updateEnquiryStatus(id, status); fetchEnquiries(); }
     catch (err) { alert('Failed to update status'); }
@@ -167,15 +167,13 @@ const AdminDashboard = () => {
     } catch (err) { alert('Failed to update contact details'); }
   };
 
-  // Helper
   const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
 
-  // Stats for overview tab
+  // Stats
   const newEnquiries = enquiries.filter(e => e.status === 'new').length;
   const pendingReviews = reviews.filter(r => r.status === 'pending').length;
   const publishedPosts = blogPosts.filter(p => p.published).length;
 
-  // Navigation items (with overview and badges)
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'enquiries', label: 'Enquiries', icon: Inbox, badge: newEnquiries },
@@ -187,7 +185,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - modern dark design (preserves all navigation) */}
+      {/* Sidebar */}
       {sidebarOpen && (
         <aside className="w-56 bg-gray-900 flex flex-col flex-shrink-0">
           <div className="px-5 py-5 border-b border-gray-700">
@@ -249,7 +247,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* ===== OVERVIEW TAB (fully restored) ===== */}
+          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -327,10 +325,9 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ===== ENQUIRIES TAB (full original features: bulk actions, filter, search, detail modal) ===== */}
+          {/* Enquiries Tab */}
           {activeTab === 'enquiries' && (
             <div>
-              {/* Filters */}
               <div className="bg-white border border-gray-200 p-4 mb-4 flex flex-wrap gap-3">
                 <div className="flex-1 min-w-[200px] relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -353,7 +350,6 @@ const AdminDashboard = () => {
                 </select>
               </div>
 
-              {/* Enquiries Table (with delete button only – bulk actions not in original, but kept as is) */}
               <div className="bg-white border border-gray-200 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
@@ -404,7 +400,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ===== REVIEWS TAB (full features: filter, approve/reject, delete) ===== */}
+          {/* Reviews Tab */}
           {activeTab === 'reviews' && (
             <div>
               <div className="bg-white border border-gray-200 p-4 mb-4 flex flex-wrap gap-3">
@@ -457,7 +453,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ===== BLOG TAB ===== */}
+          {/* Blog Tab */}
           {activeTab === 'blog' && (
             <div>
               <div className="bg-white border border-gray-200 p-5 mb-6">
@@ -502,7 +498,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ===== GALLERY TAB ===== */}
+          {/* Gallery Tab - UPDATED CATEGORY OPTIONS */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border border-gray-200 p-5 mb-6">
@@ -515,6 +511,10 @@ const AdminDashboard = () => {
                     <option value="product">Product</option>
                     <option value="team">Team</option>
                     <option value="workshop">Workshop</option>
+                    <option value="expo">Expo</option>
+                    <option value="award">Awards</option>
+                    <option value="launch">Launch</option>
+                    <option value="network">Networking</option>
                   </select>
                   <input type="text" placeholder="Description (optional)" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border px-4 py-2" />
                   <button type="submit" className="bg-[#0055FF] text-white px-5 py-2">Add to Gallery</button>
@@ -539,7 +539,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ===== CONTACT TAB ===== */}
+          {/* Contact Tab */}
           {activeTab === 'contact' && (
             <div className="bg-white border border-gray-200 p-6 max-w-2xl">
               <h2 className="text-xl font-bold mb-4">Update Contact Details</h2>

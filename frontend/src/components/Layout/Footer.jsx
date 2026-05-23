@@ -78,7 +78,7 @@ const Footer = () => {
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Contact</p>
             <ul className="space-y-2 text-xs text-gray-500">
               <li>hello@aisolutions.com</li>
-              <li>+1 (977) 101000101</li>
+              <li>+1 (977) 555-01399</li>
               <li>Kathmandu</li>
               <li>Mon–Fri · 9am–6pm</li>
             </ul>

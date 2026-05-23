@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getGalleryItems } from '../services/api';
-import { X, ZoomIn } from 'lucide-react';
+import { X, ZoomIn, Calendar, Tag, Sparkles } from 'lucide-react';
 
 // Helper to extract year from date string
 const getYearFromDate = (dateString) => {
@@ -8,22 +8,22 @@ const getYearFromDate = (dateString) => {
   return new Date(dateString).getFullYear().toString();
 };
 
-// Predefined color map for consistent category styling
-const CATEGORY_COLORS = {
-  Conference: 'bg-blue-100 text-blue-700',
-  Workshop: 'bg-violet-100 text-violet-700',
-  Expo: 'bg-emerald-100 text-emerald-700',
-  Awards: 'bg-amber-100 text-amber-700',
-  Networking: 'bg-rose-100 text-rose-700',
-  Launch: 'bg-cyan-100 text-cyan-700',
-  Team: 'bg-indigo-100 text-indigo-700',
-  Product: 'bg-purple-100 text-purple-700',
-  Event: 'bg-pink-100 text-pink-700',
-  Default: 'bg-gray-100 text-gray-600',
+// Enhanced category colors with gradients
+const CATEGORY_STYLES = {
+  Conference: { bg: 'bg-gradient-to-r from-blue-500 to-indigo-500', text: 'text-white', badge: 'from-blue-500 to-indigo-500' },
+  Workshop: { bg: 'bg-gradient-to-r from-violet-500 to-purple-500', text: 'text-white', badge: 'from-violet-500 to-purple-500' },
+  Expo: { bg: 'bg-gradient-to-r from-emerald-500 to-teal-500', text: 'text-white', badge: 'from-emerald-500 to-teal-500' },
+  Awards: { bg: 'bg-gradient-to-r from-amber-500 to-orange-500', text: 'text-white', badge: 'from-amber-500 to-orange-500' },
+  Networking: { bg: 'bg-gradient-to-r from-rose-500 to-pink-500', text: 'text-white', badge: 'from-rose-500 to-pink-500' },
+  Launch: { bg: 'bg-gradient-to-r from-cyan-500 to-sky-500', text: 'text-white', badge: 'from-cyan-500 to-sky-500' },
+  Team: { bg: 'bg-gradient-to-r from-indigo-500 to-blue-500', text: 'text-white', badge: 'from-indigo-500 to-blue-500' },
+  Product: { bg: 'bg-gradient-to-r from-purple-500 to-fuchsia-500', text: 'text-white', badge: 'from-purple-500 to-fuchsia-500' },
+  Event: { bg: 'bg-gradient-to-r from-pink-500 to-rose-500', text: 'text-white', badge: 'from-pink-500 to-rose-500' },
+  Default: { bg: 'bg-gradient-to-r from-gray-500 to-gray-600', text: 'text-white', badge: 'from-gray-500 to-gray-600' },
 };
 
-const getCategoryColor = (category) => {
-  return CATEGORY_COLORS[category] || CATEGORY_COLORS.Default;
+const getCategoryStyle = (category) => {
+  return CATEGORY_STYLES[category] || CATEGORY_STYLES.Default;
 };
 
 const Gallery = () => {
@@ -33,7 +33,6 @@ const Gallery = () => {
   const [activeYear, setActiveYear] = useState('All');
   const [lightbox, setLightbox] = useState(null);
   
-  // Always show these categories even if no items have them (for UI consistency)
   const defaultCategories = ['All', 'Conference', 'Workshop', 'Expo', 'Awards', 'Networking', 'Launch'];
   const defaultYears = ['All', '2026', '2025', '2024'];
   
@@ -45,21 +44,14 @@ const Gallery = () => {
       try {
         const res = await getGalleryItems();
         const data = res.data.data;
-
-        // Enrich items with computed year
         const enriched = data.map(item => ({
           ...item,
           year: getYearFromDate(item.createdAt),
         }));
-
-        // Extract unique categories and years from actual data
         const uniqueCategoriesFromData = [...new Set(enriched.map(i => i.category).filter(Boolean))];
         const uniqueYearsFromData = [...new Set(enriched.map(i => i.year))].sort().reverse();
-        
-        // Merge with defaults to ensure buttons are always visible
         const allCategories = ['All', ...new Set([...uniqueCategoriesFromData, ...defaultCategories.slice(1)])];
         const allYears = ['All', ...new Set([...uniqueYearsFromData, ...defaultYears.slice(1)])].sort().reverse();
-        
         setCategories(allCategories);
         setYears(allYears);
         setItems(enriched);
@@ -80,158 +72,217 @@ const Gallery = () => {
 
   return (
     <div className="bg-white">
-      {/* Dark Hero Header - same as example */}
-      <div className="relative overflow-hidden border-b border-gray-200">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
-        <div
-          className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '28px 28px' }}
-        />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#0055FF] rounded-full blur-3xl opacity-10 -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500 rounded-full blur-3xl opacity-10 translate-y-1/2 -translate-x-1/4" />
-        <div className="relative max-w-7xl mx-auto px-8 py-20">
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-3">Visual Archive</p>
-          <h1 className="text-5xl font-bold text-white mb-4">Photo Gallery</h1>
-          <p className="text-lg text-gray-400 max-w-xl">
+      {/* Hero Header – vibrant gradient with animated blobs */}
+      <div className="relative overflow-hidden border-b border-indigo-100">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900" />
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #a5b4fc 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div className="absolute top-0 -right-32 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="absolute bottom-0 -left-32 w-96 h-96 bg-purple-500 rounded-full blur-3xl opacity-30 animate-pulse delay-1000" />
+        
+        <div className="relative max-w-7xl mx-auto px-8 py-24">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 mb-4">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-200">Visual Archive</p>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-black text-white mb-4">
+            Photo <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">Gallery</span>
+          </h1>
+          <p className="text-lg text-indigo-200 max-w-xl">
             Browse highlights from our conferences, workshops, product launches, and community events.
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-16">
-        {/* Filters - Always visible */}
+        {/* Filters – animated, with gradient active states */}
         <div className="flex flex-wrap items-center gap-4 mb-12">
           <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 text-sm font-medium border transition-all duration-150 ${
-                  activeCategory === cat
-                    ? 'bg-[#0055FF] text-white border-[#0055FF]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                }`}
-              >
-                {cat === 'All' ? cat : cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`relative px-5 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg hover:shadow-xl'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                  }`}
+                >
+                  {cat === 'All' ? cat : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  {isActive && (
+                    <span className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 blur-md opacity-40 -z-10" />
+                  )}
+                </button>
+              );
+            })}
           </div>
-          <div className="w-px h-5 bg-gray-200 mx-2" />
+          <div className="w-px h-6 bg-gradient-to-b from-transparent via-gray-300 to-transparent" />
           <div className="flex gap-2 flex-wrap">
-            {years.map((yr) => (
-              <button
-                key={yr}
-                onClick={() => setActiveYear(yr)}
-                className={`px-3 py-2 text-sm font-medium border transition-all duration-150 ${
-                  activeYear === yr
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                }`}
-              >
-                {yr}
-              </button>
-            ))}
+            {years.map((yr) => {
+              const isActive = activeYear === yr;
+              return (
+                <button
+                  key={yr}
+                  onClick={() => setActiveYear(yr)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+                    isActive
+                      ? 'bg-gray-900 text-white shadow-md'
+                      : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {yr}
+                </button>
+              );
+            })}
           </div>
-          <span className="ml-auto text-sm text-gray-400">{filtered.length} photos</span>
+          <span className="ml-auto text-sm text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">
+            {filtered.length} {filtered.length === 1 ? 'photo' : 'photos'}
+          </span>
         </div>
 
-        {/* Masonry Grid */}
+        {/* Masonry Grid with fade-in animation */}
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <div className="w-10 h-10 border-4 border-[#0055FF] border-t-transparent rounded-full animate-spin" />
+            <div className="relative w-12 h-12">
+              <div className="absolute inset-0 border-4 border-indigo-200 rounded-full" />
+              <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin" />
+            </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">No photos match the selected filters.</div>
+          <div className="text-center py-20">
+            <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
+              <ZoomIn className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-gray-400 text-lg">No photos match the selected filters.</p>
+          </div>
         ) : (
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-5 space-y-5">
-            {filtered.map((item) => (
-              <div
-                key={item._id}
-                onClick={() => setLightbox(item)}
-                className="group break-inside-avoid border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-white"
-              >
-                <div className="relative overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-auto object-cover"
-                    style={{ aspectRatio: '4/3' }}
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                    <div className="flex items-center gap-2 text-white">
-                      <ZoomIn className="w-4 h-4" />
-                      <span className="text-xs font-medium">View photo</span>
+          <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
+            {filtered.map((item, idx) => {
+              const categoryStyle = getCategoryStyle(item.category);
+              return (
+                <div
+                  key={item._id}
+                  onClick={() => setLightbox(item)}
+                  className="group break-inside-avoid rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer"
+                  style={{ animation: `fadeInUp 0.6s ease-out ${idx * 0.05}s both` }}
+                >
+                  <div className="relative overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
+                      style={{ aspectRatio: '4/3' }}
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-5">
+                      <div className="flex items-center gap-2 text-white bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
+                        <ZoomIn className="w-4 h-4" />
+                        <span className="text-xs font-medium">View</span>
+                      </div>
                     </div>
+                    {/* Category badge on image (corner) */}
+                    {item.category && (
+                      <span className={`absolute top-3 left-3 text-[10px] font-bold px-2 py-1 rounded-md ${categoryStyle.bg} text-white shadow-md`}>
+                        {item.category}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-base font-bold text-gray-900 leading-tight">{item.title}</p>
+                      <span className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        <Calendar className="w-3 h-3" />
+                        {item.year}
+                      </span>
+                    </div>
+                    {item.description && (
+                      <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description}</p>
+                    )}
                   </div>
                 </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-gray-900 leading-snug">{item.title}</p>
-                    <span
-                      className={`flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${getCategoryColor(item.category)}`}
-                    >
-                      {item.year}
-                    </span>
-                  </div>
-                  {item.category && (
-                    <span
-                      className={`inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full ${getCategoryColor(item.category)}`}
-                    >
-                      {item.category}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Lightbox Modal */}
+      {/* Lightbox Modal – enhanced with scale-in animation */}
       {lightbox && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
           onClick={() => setLightbox(null)}
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
         >
           <div
-            className="bg-white max-w-3xl w-full overflow-hidden shadow-2xl"
+            className="relative bg-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative">
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 hover:scale-110 transition-all duration-200"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="relative bg-gray-100">
               <img
                 src={lightbox.image}
                 alt={lightbox.title}
-                className="w-full h-auto max-h-[60vh] object-contain bg-gray-100"
+                className="w-full max-h-[65vh] object-contain"
               />
-              <button
-                onClick={() => setLightbox(null)}
-                className="absolute top-4 right-4 w-8 h-8 bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
-            <div className="p-6 flex items-center justify-between">
-              <div>
-                <p className="font-bold text-gray-900">{lightbox.title}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {lightbox.category} · {lightbox.year}
-                </p>
-                {lightbox.description && (
-                  <p className="text-sm text-gray-500 mt-1">{lightbox.description}</p>
-                )}
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{lightbox.title}</h3>
+                  <div className="flex flex-wrap gap-3 mt-2">
+                    {lightbox.category && (
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${getCategoryStyle(lightbox.category).bg} text-white`}>
+                        <Tag className="w-3 h-3" />
+                        {lightbox.category}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                      <Calendar className="w-3 h-3" />
+                      {lightbox.year}
+                    </span>
+                  </div>
+                </div>
               </div>
-              {lightbox.category && (
-                <span
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full ${getCategoryColor(lightbox.category)}`}
-                >
-                  {lightbox.category}
-                </span>
+              {lightbox.description && (
+                <p className="text-gray-600 mt-4 leading-relaxed">{lightbox.description}</p>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Custom keyframes for fade-in and scale animations */}
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-scale-in {
+          animation: scaleIn 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
