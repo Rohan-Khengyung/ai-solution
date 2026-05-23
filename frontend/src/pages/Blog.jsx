@@ -143,7 +143,7 @@ const Blog = () => {
             {rest.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {rest.map(post => (
-                  <Link key={post._id} to={`/blog/${post.slug}`} className="group block border border-gray-200 bg-white hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden rounded-lg flex flex-col">
+                  <Link key={post._id} to={`/blog/${post.slug}`} className="group block border border-gray-200 bg-white hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden rounded-lg flex-col">
                     {/* Card top illustration */}
                     <div className="relative h-40 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
                       {post.image ? (
