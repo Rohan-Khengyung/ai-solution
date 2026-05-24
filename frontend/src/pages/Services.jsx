@@ -64,7 +64,7 @@ const Services = () => {
 
   return (
     <>
-      {/* Page Header — vibrant gradient background */}
+      {/* Page Header */}
       <div className="relative overflow-hidden border-b border-indigo-100 bg-gradient-to-br from-slate-50 via-white to-indigo-50/70">
         {/* Animated background blobs */}
         <div className="absolute top-0 -left-48 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
@@ -86,7 +86,7 @@ const Services = () => {
       </div>
 
       <div className="container mx-auto px-4 py-16">
-        {/* Quick Navigation — glass morphism, micro-interactions */}
+        {/* Quick Navigation */}
         <div className="flex flex-wrap gap-3 mb-16 pb-8 border-b border-gray-200">
           {services.map((service, idx) => (
             <a
@@ -103,7 +103,7 @@ const Services = () => {
           ))}
         </div>
 
-        {/* Services List — exact original grid alignment (md:grid-cols-5) */}
+        {/* Services List */}
         <div className="space-y-20">
           {services.map((service, idx) => (
             <div key={idx} id={`service-${idx}`} className="scroll-mt-20 group/service">

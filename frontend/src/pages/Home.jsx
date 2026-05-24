@@ -233,7 +233,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Strip - upgraded with gradient and micro-animations */}
+      {/* Stats Strip */}
       <section className="relative overflow-hidden bg-gradient-to-r from-indigo-50 via-blue-50 to-cyan-50 border-y border-blue-100 shadow-md">
         {/* Animated background dots */}
         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
@@ -257,7 +257,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Software Solutions (unchanged but background upgraded) */}
+      {/* Software Solutions */}
       <section className="py-24 bg-gradient-to-b from-white to-indigo-50/30">
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
@@ -299,7 +299,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Past Projects Highlights - upgraded background with animated gradient */}
+      {/* Past Projects Highlights */}
       <section className="relative py-24 overflow-hidden">
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-blue-700 to-indigo-900">
@@ -346,7 +346,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Testimonials (unchanged, vibrant background already) */}
+      {/* Testimonials */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
@@ -396,7 +396,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Events Banner (unchanged, already vibrant) */}
+      {/* Events Banner */}
       <section className="relative overflow-hidden bg-gradient-to-r from-indigo-900 via-blue-700 to-indigo-900">
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/grain.svg')] opacity-10" />
         <div className="max-w-7xl mx-auto px-8 py-10">
@@ -423,7 +423,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Latest Articles (subtle background upgrade) */}
+      {/* Latest Articles */}
       <section className="py-24 bg-gradient-to-t from-slate-50 via-white to-indigo-50/20">
         <div className="max-w-7xl mx-auto px-8">
           <div className="mb-16">

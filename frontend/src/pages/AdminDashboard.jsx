@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  Menu, X, ChevronDown, Trash2, Eye, LayoutDashboard, Inbox, Star,
-  MessageSquare, BookOpen, Plus, Edit3, Check, Ban, Globe, Phone,
-  Mail, Calendar, User, Building, LogOut, Image, Search
+  Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
+  Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -23,23 +22,33 @@ import {
   getGalleryItems,
   getAllBlogsAdmin,
 } from '../services/api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// Temporary helper for reject (replace with actual API call)
+const updateReviewStatus = async (id, status) => {
+  console.log(`Update review ${id} to ${status}`);
+  // TODO: implement actual API call: await axios.put(`/api/admin/reviews/${id}/status`, { status });
+  return Promise.resolve();
+};
 
 const AdminDashboard = () => {
   const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [selectedEnquiries, setSelectedEnquiries] = useState([]);
 
   // --- State ---
   const [enquiries, setEnquiries] = useState([]);
   const [enquiryFilter, setEnquiryFilter] = useState('');
   const [enquirySearch, setEnquirySearch] = useState('');
   const [reviews, setReviews] = useState([]);
-  const [reviewFilter, setReviewFilter] = useState('');
+  const [reviewFilter, setReviewFilter] = useState('all');
   const [blogPosts, setBlogPosts] = useState([]);
   const [editingBlog, setEditingBlog] = useState(null);
   const [blogForm, setBlogForm] = useState({
     title: '', excerpt: '', content: '', image: '',
-    author: 'AI Solutions Team', published: true,
+    author: 'AI Solutions Team', published: true, tags: []
   });
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryForm, setGalleryForm] = useState({
@@ -61,7 +70,7 @@ const AdminDashboard = () => {
   };
   const fetchReviews = async () => {
     try {
-      const params = reviewFilter ? { status: reviewFilter } : {};
+      const params = reviewFilter !== 'all' ? { status: reviewFilter } : {};
       const res = await getAllReviews(params);
       setReviews(res.data.data);
     } catch (err) { console.error(err); alert('Failed to load reviews'); }
@@ -86,15 +95,14 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'enquiries') fetchEnquiries();
+    if (activeTab === 'enquiries' || activeTab === 'contact-details') fetchEnquiries();
     else if (activeTab === 'reviews') fetchReviews();
     else if (activeTab === 'blog') fetchBlogs();
     else if (activeTab === 'gallery') fetchGallery();
     else if (activeTab === 'contact') fetchContact();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, enquiryFilter, enquirySearch, reviewFilter]);
 
-  // --- Handlers ---
+  // --- Enquiry handlers (including bulk actions)---
   const handleStatusChange = async (id, status) => {
     try { await updateEnquiryStatus(id, status); fetchEnquiries(); }
     catch (err) { alert('Failed to update status'); }
@@ -105,16 +113,53 @@ const AdminDashboard = () => {
       catch (err) { alert('Failed to delete enquiry'); }
     }
   };
+
+  const handleSelectOne = (id) => {
+    setSelectedEnquiries(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+  const handleSelectAll = (checked) => {
+    if (checked) setSelectedEnquiries(enquiries.map(e => e._id));
+    else setSelectedEnquiries([]);
+  };
+  const handleBulkStatus = async (status) => {
+    if (!selectedEnquiries.length) return;
+    if (window.confirm(`Mark ${selectedEnquiries.length} enquiry(ies) as ${status}?`)) {
+      for (const id of selectedEnquiries) await updateEnquiryStatus(id, status);
+      fetchEnquiries();
+      setSelectedEnquiries([]);
+      alert(`Updated ${selectedEnquiries.length} enquiries.`);
+    }
+  };
+  const handleBulkDelete = async () => {
+    if (!selectedEnquiries.length) return;
+    if (window.confirm(`Delete ${selectedEnquiries.length} enquiry(ies) permanently?`)) {
+      for (const id of selectedEnquiries) await deleteEnquiry(id);
+      fetchEnquiries();
+      setSelectedEnquiries([]);
+      alert(`Deleted ${selectedEnquiries.length} enquiries.`);
+    }
+  };
+
+  // --- Review handlers ---
   const handleApproveReview = async (id) => {
     try { await approveReview(id); fetchReviews(); }
     catch (err) { alert('Failed to approve review'); }
   };
+  const handleRejectReview = async (id) => {
+    if (!window.confirm('Reject this review?')) return;
+    try { await updateReviewStatus(id, 'rejected'); fetchReviews(); }
+    catch (err) { alert('Failed to reject review'); }
+  };
   const handleDeleteReview = async (id) => {
-    if (window.confirm('Delete this review?')) {
+    if (window.confirm('Delete this review permanently?')) {
       try { await deleteReview(id); fetchReviews(); }
       catch (err) { alert('Failed to delete review'); }
     }
   };
+
+  // --- Blog handlers ---
   const handleBlogSubmit = async (e) => {
     e.preventDefault();
     if (!blogForm.title || !blogForm.excerpt || !blogForm.content || !blogForm.image) {
@@ -125,7 +170,7 @@ const AdminDashboard = () => {
       if (editingBlog) await updateBlogPost(editingBlog._id, blogForm);
       else await createBlogPost(blogForm);
       alert(editingBlog ? 'Blog updated!' : 'Blog published!');
-      setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true });
+      setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] });
       setEditingBlog(null);
       await fetchBlogs();
     } catch (err) { alert('Failed to save blog post'); }
@@ -135,6 +180,7 @@ const AdminDashboard = () => {
     setBlogForm({
       title: post.title, excerpt: post.excerpt, content: post.content,
       image: post.image, author: post.author, published: post.published,
+      tags: post.tags || []
     });
   };
   const handleDeleteBlog = async (id) => {
@@ -143,6 +189,8 @@ const AdminDashboard = () => {
       catch (err) { alert('Failed to delete blog'); }
     }
   };
+
+  // --- Gallery handlers ---
   const handleGallerySubmit = async (e) => {
     e.preventDefault();
     if (!galleryForm.title || !galleryForm.image) { alert('Title and Image URL are required'); return; }
@@ -159,6 +207,8 @@ const AdminDashboard = () => {
       catch (err) { alert('Failed to delete gallery item'); }
     }
   };
+
+  // --- Contact info handlers ---
   const handleContactUpdate = async (e) => {
     e.preventDefault();
     try {
@@ -167,9 +217,28 @@ const AdminDashboard = () => {
     } catch (err) { alert('Failed to update contact details'); }
   };
 
+  // Reply via email
+  const handleReplyEmail = (email, name, jobDetails) => {
+    const subject = `Reply to your enquiry - AI Solutions`;
+    const body = `Dear ${name},\n\nThank you for your enquiry. We will get back to you shortly.\n\nYour enquiry details:\n${jobDetails}\n\nBest regards,\nAI Solutions Team`;
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  // Analytics
+  const getMonthlyEnquiries = () => {
+    const monthMap = {};
+    enquiries.forEach(enq => {
+      const date = new Date(enq.createdAt);
+      const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      monthMap[monthYear] = (monthMap[monthYear] || 0) + 1;
+    });
+    return Object.entries(monthMap)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, count]) => ({ month, count }));
+  };
+
   const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
 
-  // Stats
   const newEnquiries = enquiries.filter(e => e.status === 'new').length;
   const pendingReviews = reviews.filter(r => r.status === 'pending').length;
   const publishedPosts = blogPosts.filter(p => p.published).length;
@@ -177,11 +246,21 @@ const AdminDashboard = () => {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'enquiries', label: 'Enquiries', icon: Inbox, badge: newEnquiries },
+    { id: 'contact-details', label: 'Contact Details', icon: Mail, badge: enquiries.length },
     { id: 'reviews', label: 'Reviews', icon: Star, badge: pendingReviews },
     { id: 'blog', label: 'Blog', icon: BookOpen },
     { id: 'gallery', label: 'Gallery', icon: Image },
-    { id: 'contact', label: 'Contact', icon: Mail },
+    { id: 'contact', label: 'Contact Info', icon: Phone },
   ];
+
+  const getBlogCategory = (post) => (post.tags && post.tags[0]) || 'Article';
+
+  const reviewCounts = {
+    all: reviews.length,
+    pending: reviews.filter(r => r.status === 'pending').length,
+    approved: reviews.filter(r => r.status === 'approved').length,
+    rejected: reviews.filter(r => r.status === 'rejected').length
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -232,13 +311,14 @@ const AdminDashboard = () => {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 border border-gray-200 hover:bg-gray-50">
               <Menu className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="text-sm font-bold text-gray-900 capitalize">{activeTab} Management</span>
+            <span className="text-sm font-bold text-gray-900 capitalize">
+              {activeTab === 'contact-details' ? 'Contact Details' : activeTab} Management
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0055FF] to-indigo-600 flex items-center justify-center text-xs font-bold text-white">A</div>
@@ -247,7 +327,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* Overview Tab */}
+          {/* OVERVIEW */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -273,8 +353,24 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
+              <div className="bg-white border border-gray-200 p-5 mb-8">
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Enquiries per Month</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={getMonthlyEnquiries()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="count" fill="#0055FF" name="Number of Enquiries" />
+                  </BarChart>
+                </ResponsiveContainer>
+                {getMonthlyEnquiries().length === 0 && (
+                  <p className="text-center text-gray-400 py-8">No data yet</p>
+                )}
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Recent Enquiries */}
                 <div className="bg-white border border-gray-200">
                   <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
                     <h3 className="text-sm font-bold text-gray-900">Recent Enquiries</h3>
@@ -294,8 +390,6 @@ const AdminDashboard = () => {
                     {enquiries.length === 0 && <div className="px-5 py-8 text-center text-xs text-gray-400">No enquiries yet</div>}
                   </div>
                 </div>
-
-                {/* Pending Reviews */}
                 <div className="bg-white border border-gray-200">
                   <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
                     <h3 className="text-sm font-bold text-gray-900">Pending Reviews</h3>
@@ -325,242 +419,372 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Enquiries Tab */}
+          {/* ENQUIRIES TAB */}
           {activeTab === 'enquiries' && (
             <div>
-              <div className="bg-white border border-gray-200 p-4 mb-4 flex flex-wrap gap-3">
+              {/* Header with stats */}
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Enquiries Management</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {enquiries.length} total enquiries · {enquiries.filter(e => e.status === 'new').length} new · {enquiries.filter(e => e.status === 'processed').length} processed
+                </p>
+              </div>
+          
+              {/* Search, filter, and bulk actions bar */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+                <div className="flex flex-wrap gap-3 items-center justify-between">
+                  <div className="flex flex-wrap gap-3 flex-1">
+                    <div className="flex-1 min-w-[200px] relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        value={enquirySearch}
+                        onChange={(e) => setEnquirySearch(e.target.value)}
+                        placeholder="Search by name, email or company..."
+                        className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF] focus:ring-1 focus:ring-[#0055FF]"
+                      />
+                    </div>
+                    <select
+                      value={enquiryFilter}
+                      onChange={(e) => setEnquiryFilter(e.target.value)}
+                      className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF]"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="new">New</option>
+                      <option value="processed">Processed</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  
+                  {/* Bulk actions appear when items selected */}
+                  {selectedEnquiries.length > 0 && (
+                    <div className="flex gap-2 items-center bg-blue-50 px-3 py-2 rounded-lg">
+                      <span className="text-sm font-medium text-blue-700">{selectedEnquiries.length} selected</span>
+                      <button
+                        onClick={() => handleBulkStatus('processed')}
+                        className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition flex items-center gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Mark Processed
+                      </button>
+                      <button
+                        onClick={() => handleBulkStatus('archived')}
+                        className="bg-gray-600 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1"
+                      >
+                        <Archive className="w-3.5 h-3.5" /> Archive
+                      </button>
+                      <button
+                        onClick={handleBulkDelete}
+                        className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete All
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+          
+              {/* Card grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {enquiries.map((enq) => (
+                  <div
+                    key={enq._id}
+                    className={`bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${
+                      selectedEnquiries.includes(enq._id) ? 'border-[#0055FF] ring-2 ring-[#0055FF]/20' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className="p-5">
+                      {/* Header with checkbox and status */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedEnquiries.includes(enq._id)}
+                            onChange={() => handleSelectOne(enq._id)}
+                            className="rounded border-gray-300 w-4 h-4 cursor-pointer"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-xs font-bold text-[#0055FF]">
+                            {enq.name.charAt(0)}
+                          </div>
+                        </div>
+                        <div>
+                          {enq.status === 'new' && (
+                            <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                              New
+                            </span>
+                          )}
+                          {enq.status === 'processed' && (
+                            <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                              <Check className="w-3 h-3" /> Processed
+                            </span>
+                          )}
+                          {enq.status === 'archived' && (
+                            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
+                              <Archive className="w-3 h-3" /> Archived
+                            </span>
+                          )}
+                        </div>
+                      </div>
+          
+                      {/* Customer info */}
+                      <div className="mb-3">
+                        <h3 className="text-lg font-bold text-gray-900">{enq.name}</h3>
+                        <p className="text-sm text-gray-600">{enq.jobTitle} · {enq.company}</p>
+                      </div>
+          
+                      {/* Contact details */}
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-gray-400" />
+                          <span className="truncate">{enq.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-gray-400" />
+                          <span>{enq.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-gray-400" />
+                          <span>{enq.country}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs">{formatDate(enq.createdAt)}</span>
+                        </div>
+                      </div>
+          
+                      {/* Project details preview */}
+                      <p className="text-gray-700 text-sm border-t pt-3 mt-2 italic">
+                        "{enq.jobDetails.substring(0, 80)}{enq.jobDetails.length > 80 && '...'}"
+                      </p>
+          
+                      {/* Action buttons */}
+                      <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                        {enq.status !== 'processed' && (
+                          <button
+                            onClick={() => handleStatusChange(enq._id, 'processed')}
+                            className="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Process
+                          </button>
+                        )}
+                        {enq.status !== 'archived' && (
+                          <button
+                            onClick={() => handleStatusChange(enq._id, 'archived')}
+                            className="bg-gray-600 text-white px-3 py-1.5 rounded text-xs hover:bg-gray-700 transition flex items-center gap-1"
+                          >
+                            <Archive className="w-3.5 h-3.5" /> Archive
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteEnquiry(enq._id)}
+                          className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-xs hover:bg-red-50 transition flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+          
+              {enquiries.length === 0 && (
+                <div className="text-center text-gray-400 py-12 bg-white rounded-lg border border-gray-200">
+                  <Inbox className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No enquiries found</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* CONTACT DETAILS */}
+          {activeTab === 'contact-details' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Contact Details</h2>
+                <p className="text-sm text-gray-500 mt-1">{enquiries.length} contact submission{enquiries.length !== 1 ? 's' : ''} received</p>
+              </div>
+              <div className="bg-white border border-gray-200 p-4 mb-6 flex flex-wrap gap-3">
                 <div className="flex-1 min-w-[200px] relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    value={enquirySearch}
-                    onChange={(e) => setEnquirySearch(e.target.value)}
-                    placeholder="Search by name, email or company"
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF]"
-                  />
+                  <input value={enquirySearch} onChange={(e) => setEnquirySearch(e.target.value)} placeholder="Search..." className="w-full pl-9 pr-4 py-2.5 border border-gray-200 text-sm bg-gray-50" />
                 </div>
-                <select
-                  value={enquiryFilter}
-                  onChange={(e) => setEnquiryFilter(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2.5 border border-gray-200 text-sm bg-gray-50"
-                >
+                <select value={enquiryFilter} onChange={(e) => setEnquiryFilter(e.target.value)} className="px-3 py-2.5 border border-gray-200 text-sm bg-gray-50">
                   <option value="">All Statuses</option>
                   <option value="new">New</option>
                   <option value="processed">Processed</option>
                   <option value="archived">Archived</option>
                 </select>
               </div>
-
-              <div className="bg-white border border-gray-200 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Email</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Country</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold uppercase text-gray-500">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {enquiries.map((enq) => (
-                      <tr key={enq._id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{enq.name}</td>
-                        <td className="px-4 py-3 text-gray-600">{enq.email}</td>
-                        <td className="px-4 py-3 text-gray-600">{enq.company}</td>
-                        <td className="px-4 py-3 text-gray-600">{enq.country}</td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(enq.createdAt)}</td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={enq.status}
-                            onChange={(e) => handleStatusChange(enq._id, e.target.value)}
-                            className={`text-xs font-bold px-2 py-1 border rounded-full appearance-none cursor-pointer ${
-                              enq.status === 'new' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-gray-100 text-gray-600 border-gray-200'
-                            }`}
-                          >
-                            <option value="new">New</option>
-                            <option value="processed">Processed</option>
-                            <option value="archived">Archived</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => handleDeleteEnquiry(enq._id)} className="text-red-600 hover:text-red-800 text-sm font-medium">
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {enquiries.length === 0 && (
-                      <tr><td colSpan="7" className="p-8 text-center text-gray-400">No enquiries found</td></tr>
-                    )}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {enquiries.map((enq) => (
+                  <div key={enq._id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedEnquiry(enq)}>
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-3">
+                        <div><h3 className="text-lg font-bold text-gray-900">{enq.name}</h3><p className="text-sm text-gray-600">{enq.jobTitle} · {enq.company}</p></div>
+                        {enq.status === 'new' && <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">New</span>}
+                      </div>
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400" /><span>{enq.email}</span></div>
+                        <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-gray-400" /><span>{enq.phone}</span></div>
+                        <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-gray-400" /><span>{enq.country}</span></div>
+                        <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-400" /><span>{formatDate(enq.createdAt)}</span></div>
+                      </div>
+                      <p className="text-gray-700 text-sm border-t pt-3 mt-2 italic">"{enq.jobDetails.substring(0, 100)}{enq.jobDetails.length > 100 && '...'}"</p>
+                      <div className="mt-4 flex justify-end"><button onClick={(e) => { e.stopPropagation(); setSelectedEnquiry(enq); }} className="text-[#0055FF] text-sm font-medium hover:underline">View Details →</button></div>
+                    </div>
+                  </div>
+                ))}
               </div>
+              {enquiries.length === 0 && <div className="text-center text-gray-400 py-12">No contact submissions yet.</div>}
+              {selectedEnquiry && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4"><h2 className="text-2xl font-bold text-gray-900">Contact Details</h2><button onClick={() => setSelectedEnquiry(null)}><X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button></div>
+                      <div className="space-y-4">
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Full Name</p><p className="text-gray-900">{selectedEnquiry.name}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Email</p><p className="text-gray-900">{selectedEnquiry.email}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Phone</p><p className="text-gray-900">{selectedEnquiry.phone}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Company</p><p className="text-gray-900">{selectedEnquiry.company}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Country</p><p className="text-gray-900">{selectedEnquiry.country}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Submitted</p><p className="text-gray-900">{formatDate(selectedEnquiry.createdAt)}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Job Title</p><p className="text-gray-900">{selectedEnquiry.jobTitle}</p></div>
+                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Job / Project Details</p><p className="text-gray-700 whitespace-pre-wrap">{selectedEnquiry.jobDetails}</p></div>
+                      </div>
+                      <div className="flex gap-3 mt-6 pt-4 border-t">
+                        <button onClick={() => handleReplyEmail(selectedEnquiry.email, selectedEnquiry.name, selectedEnquiry.jobDetails)} className="bg-[#0055FF] text-white px-4 py-2 rounded text-sm flex items-center gap-2"><Send className="w-4 h-4" /> Reply via Email</button>
+                        <button onClick={() => setSelectedEnquiry(null)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-50">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Reviews Tab */}
+          {/* REVIEWS */}
           {activeTab === 'reviews' && (
             <div>
-              <div className="bg-white border border-gray-200 p-4 mb-4 flex flex-wrap gap-3">
-                <select
-                  value={reviewFilter}
-                  onChange={(e) => setReviewFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 text-sm bg-gray-50"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Review Moderation</h2>
+                <div className="flex gap-4 mt-2 border-b">
+                  {['all', 'pending', 'approved', 'rejected'].map(status => (
+                    <button key={status} onClick={() => setReviewFilter(status)} className={`px-4 py-2 text-sm font-medium transition-colors ${reviewFilter === status ? 'border-b-2 border-[#0055FF] text-[#0055FF]' : 'text-gray-500 hover:text-gray-700'}`}>
+                      {status.toUpperCase()} ({reviewCounts[status]})
+                    </button>
+                  ))}
+                </div>
               </div>
-
               <div className="space-y-4">
-                {reviews.map((rev) => (
-                  <div key={rev._id} className="bg-white border border-gray-200 p-5">
+                {reviews.map(review => (
+                  <div key={review._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
                     <div className="flex justify-between items-start flex-wrap gap-4">
-                      <div>
-                        <p className="font-bold">{rev.name} <span className="text-gray-500 text-sm">from {rev.company}</span></p>
-                        <div className="text-yellow-500 my-1">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
-                        <p className="text-gray-700 mt-2 italic">"{rev.comment}"</p>
-                        <p className="text-xs text-gray-400 mt-2">{formatDate(rev.date)}</p>
-                        <p className="text-xs mt-1">
-                          Status:{' '}
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                            rev.status === 'approved' ? 'bg-green-100 text-green-800' :
-                            rev.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {rev.status}
-                          </span>
-                        </p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap"><h3 className="font-bold text-gray-900">{review.name}</h3><span className="text-sm text-gray-500">· {review.company}</span><span className="text-xs text-gray-400 ml-2">{formatDate(review.date)}</span></div>
+                        <div className="flex items-center gap-1 my-2">{[...Array(5)].map((_, i) => <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />)}</div>
+                        <p className="text-gray-700 italic">"{review.comment}"</p>
+                        <div className="mt-3"><span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${review.status === 'approved' ? 'bg-green-100 text-green-800' : review.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{review.status.toUpperCase()}</span></div>
                       </div>
-                      <div className="flex gap-2">
-                        {rev.status === 'pending' && (
-                          <button onClick={() => handleApproveReview(rev._id)} className="bg-emerald-600 text-white px-3 py-1 text-sm rounded hover:bg-emerald-700">
-                            Approve
-                          </button>
-                        )}
-                        <button onClick={() => handleDeleteReview(rev._id)} className="bg-red-600 text-white px-3 py-1 text-sm rounded hover:bg-red-700">
-                          Delete
-                        </button>
+                      <div className="flex gap-2 flex-shrink-0">
+                        {review.status !== 'approved' && <button onClick={() => handleApproveReview(review._id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-emerald-700"><ThumbsUp className="w-3.5 h-3.5" /> Approve</button>}
+                        {review.status !== 'rejected' && <button onClick={() => handleRejectReview(review._id)} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-700"><ThumbsDown className="w-3.5 h-3.5" /> Reject</button>}
+                        <button onClick={() => handleDeleteReview(review._id)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                       </div>
                     </div>
                   </div>
                 ))}
-                {reviews.length === 0 && <p className="text-center text-gray-400 py-8">No reviews found.</p>}
+                {reviews.length === 0 && <div className="text-center text-gray-400 py-12">No reviews in this category.</div>}
               </div>
             </div>
           )}
 
-          {/* Blog Tab */}
+          {/* BLOG */}
           {activeTab === 'blog' && (
             <div>
-              <div className="bg-white border border-gray-200 p-5 mb-6">
-                <h2 className="text-xl font-bold mb-4">{editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}</h2>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Blog Management</h2>
+                <p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p>
+              </div>
+
+              <div id="blog-form" className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
+                <h3 className="text-lg font-bold mb-4">{editingBlog ? 'Edit Post' : 'Create New Post'}</h3>
                 <form onSubmit={handleBlogSubmit} className="space-y-4">
-                  <input type="text" placeholder="Title *" value={blogForm.title} onChange={(e) => setBlogForm({...blogForm, title: e.target.value})} required className="w-full border px-4 py-2" />
-                  <input type="text" placeholder="Excerpt *" value={blogForm.excerpt} onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})} required className="w-full border px-4 py-2" />
-                  <textarea placeholder="Content *" rows="6" value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} required className="w-full border px-4 py-2" />
-                  <input type="text" placeholder="Image URL *" value={blogForm.image} onChange={(e) => setBlogForm({...blogForm, image: e.target.value})} required className="w-full border px-4 py-2" />
-                  <input type="text" placeholder="Author" value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} className="w-full border px-4 py-2" />
+                  <input type="text" placeholder="Title *" value={blogForm.title} onChange={(e) => setBlogForm({...blogForm, title: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
+                  <input type="text" placeholder="Excerpt *" value={blogForm.excerpt} onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
+                  <textarea placeholder="Content *" rows="6" value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
+                  <input type="text" placeholder="Image URL *" value={blogForm.image} onChange={(e) => setBlogForm({...blogForm, image: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
+                  <input type="text" placeholder="Author" value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} className="w-full border border-gray-200 rounded px-4 py-2" />
+                  <input type="text" placeholder="Tags (comma separated)" value={blogForm.tags.join(', ')} onChange={(e) => setBlogForm({...blogForm, tags: e.target.value.split(',').map(t => t.trim())})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={blogForm.published} onChange={(e) => setBlogForm({...blogForm, published: e.target.checked})} /> Published (visible on website)</label>
                   <div className="flex gap-2">
-                    <button type="submit" className="bg-[#0055FF] text-white px-5 py-2">{editingBlog ? 'Update' : 'Publish'}</button>
-                    {editingBlog && (
-                      <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true }); }} className="bg-gray-500 text-white px-5 py-2">Cancel</button>
-                    )}
+                    <button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>
+                    {editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] }); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}
                   </div>
                 </form>
               </div>
 
-              <h2 className="text-xl font-bold mb-4">Existing Posts</h2>
               <div className="space-y-4">
-                {blogPosts.map((post) => (
-                  <div key={post._id} className="bg-white border border-gray-200 p-5 flex justify-between items-start flex-wrap gap-4">
-                    <div>
-                      <h3 className="font-bold text-lg">{post.title}</h3>
-                      <p className="text-gray-600 text-sm">{post.excerpt}</p>
-                      <div className="flex gap-3 text-xs text-gray-400 mt-2">
-                        <span>{formatDate(post.createdAt)}</span>
-                        <span>By {post.author}</span>
-                        <span className={post.published ? 'text-green-600' : 'text-red-600'}>{post.published ? 'Published' : 'Draft'}</span>
+                {blogPosts.map(post => (
+                  <div key={post._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
+                    <div className="flex justify-between items-start flex-wrap gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{getBlogCategory(post)}</span>
+                          {post.published ? <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Published</span> : <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">Draft</span>}
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">{post.title}</h3>
+                        <p className="text-gray-600 text-sm mb-3">{post.excerpt}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-400"><span>{post.author}</span><span>·</span><span>{formatDate(post.createdAt)}</span></div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditBlog(post)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-gray-50"><Edit className="w-3.5 h-3.5" /> Edit</button>
+                        <button onClick={() => handleDeleteBlog(post._id)} className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEditBlog(post)} className="bg-yellow-600 text-white px-3 py-1 text-sm rounded">Edit</button>
-                      <button onClick={() => handleDeleteBlog(post._id)} className="bg-red-600 text-white px-3 py-1 text-sm rounded">Delete</button>
-                    </div>
                   </div>
                 ))}
-                {blogPosts.length === 0 && <p className="text-center text-gray-400 py-4">No blog posts yet.</p>}
+                {blogPosts.length === 0 && <div className="text-center text-gray-400 py-12">No blog posts yet. Create your first post!</div>}
               </div>
             </div>
           )}
 
-          {/* Gallery Tab - UPDATED CATEGORY OPTIONS */}
+          {/* GALLERY */}
           {activeTab === 'gallery' && (
             <div>
-              <div className="bg-white border border-gray-200 p-5 mb-6">
-                <h2 className="text-xl font-bold mb-4">Add New Gallery Image</h2>
+              <div className="bg-white border p-5 mb-6">
+                <h2 className="text-xl font-bold mb-4">Add Gallery Item</h2>
                 <form onSubmit={handleGallerySubmit} className="space-y-4">
-                  <input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border px-4 py-2" />
-                  <input type="text" placeholder="Image URL *" value={galleryForm.image} onChange={(e) => setGalleryForm({...galleryForm, image: e.target.value})} required className="w-full border px-4 py-2" />
-                  <select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border px-4 py-2">
-                    <option value="event">Event</option>
-                    <option value="product">Product</option>
-                    <option value="team">Team</option>
-                    <option value="workshop">Workshop</option>
-                    <option value="expo">Expo</option>
-                    <option value="award">Awards</option>
-                    <option value="launch">Launch</option>
-                    <option value="network">Networking</option>
+                  <input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
+                  <input type="text" placeholder="Image URL *" value={galleryForm.image} onChange={(e) => setGalleryForm({...galleryForm, image: e.target.value})} required className="w-full border p-2" />
+                  <select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border p-2">
+                    <option value="event">Event</option><option value="product">Product</option><option value="team">Team</option><option value="workshop">Workshop</option>
                   </select>
-                  <input type="text" placeholder="Description (optional)" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border px-4 py-2" />
-                  <button type="submit" className="bg-[#0055FF] text-white px-5 py-2">Add to Gallery</button>
+                  <input type="text" placeholder="Description" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border p-2" />
+                  <button type="submit" className="bg-blue-600 text-white px-4 py-2">Add</button>
                 </form>
               </div>
-
-              <h2 className="text-xl font-bold mb-4">Gallery Items</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-4">
                 {galleryItems.map((item) => (
-                  <div key={item._id} className="bg-white border border-gray-200 overflow-hidden">
-                    <img src={item.image} alt={item.title} className="w-full h-48 object-cover" />
-                    <div className="p-4">
-                      <h3 className="font-bold">{item.title}</h3>
-                      <p className="text-sm text-gray-600">Category: {item.category}</p>
-                      {item.description && <p className="text-sm text-gray-500 mt-1">{item.description}</p>}
-                      <button onClick={() => handleDeleteGallery(item._id)} className="mt-2 text-red-600 text-sm font-medium">Delete</button>
-                    </div>
+                  <div key={item._id} className="border p-2">
+                    <img src={item.image} alt={item.title} className="w-full h-32 object-cover" />
+                    <p className="font-bold">{item.title}</p>
+                    <button onClick={() => handleDeleteGallery(item._id)} className="text-red-600 text-sm">Delete</button>
                   </div>
                 ))}
-                {galleryItems.length === 0 && <p className="text-center text-gray-400 col-span-3 py-8">No gallery items yet.</p>}
               </div>
             </div>
           )}
 
-          {/* Contact Tab */}
+          {/* CONTACT INFO  */}
           {activeTab === 'contact' && (
-            <div className="bg-white border border-gray-200 p-6 max-w-2xl">
-              <h2 className="text-xl font-bold mb-4">Update Contact Details</h2>
+            <div className="bg-white border p-6 max-w-2xl">
+              <h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2>
               <form onSubmit={handleContactUpdate} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input type="email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border px-4 py-2" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Phone</label>
-                  <input type="text" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border px-4 py-2" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Address</label>
-                  <input type="text" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border px-4 py-2" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Hours</label>
-                  <input type="text" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border px-4 py-2" />
-                </div>
-                <button type="submit" className="bg-[#0055FF] text-white px-5 py-2">Save Changes</button>
+                <input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" />
+                <input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" />
+                <input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" />
+                <input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" />
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button>
               </form>
             </div>
           )}
