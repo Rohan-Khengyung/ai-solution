@@ -13,7 +13,7 @@ const Header = () => {
     { path: '/testimonials', label: 'Testimonials' },
     { path: '/gallery', label: 'Gallery' },
     { path: '/events', label: 'Events' },
-    { path: '/contact', label: 'Contact' },
+    { path: '/contact', label: 'Contact Us' },
   ];
 
   return (

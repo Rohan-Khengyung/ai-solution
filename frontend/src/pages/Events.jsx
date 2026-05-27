@@ -157,13 +157,15 @@ const Events = () => {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 leading-relaxed">{event.description}</p>
-                    </div>
+                    </div>     
                     <div className="flex-shrink-0">
+                       <Link to="/contact">
                       <button className="group/btn relative inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 overflow-hidden">
                         Register Now
                         <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 blur-md opacity-0 group-hover/btn:opacity-40 transition-opacity" />
                       </button>
+                      </Link>
                     </div>
                   </div>
                 </div>
