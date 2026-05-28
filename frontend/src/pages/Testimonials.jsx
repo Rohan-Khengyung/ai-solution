@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Star, CheckCircle, PenLine, X, Sparkles, Users, Globe, ThumbsUp } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Star, Quote, TrendingUp, Users, Award, Zap, Sparkles, PenLine, X, CheckCircle, ThumbsUp, Globe } from 'lucide-react';
 import { getApprovedReviews, submitReview } from '../services/api';
 
+// Star rating picker (used in the review form)
 const StarPicker = ({ value, onChange }) => {
   const [hover, setHover] = useState(0);
   return (
@@ -19,7 +21,7 @@ const StarPicker = ({ value, onChange }) => {
             className={`w-7 h-7 transition-all duration-200 ${
               n <= (hover || value)
                 ? 'fill-amber-400 text-amber-400 drop-shadow-sm'
-                : 'text-gray-200 fill-gray-100'
+                : 'text-gray-600 fill-gray-800'
             }`}
           />
         </button>
@@ -37,12 +39,13 @@ const Testimonials = () => {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
 
+  // Fetch approved reviews from API
   const fetchReviews = async () => {
     try {
       const res = await getApprovedReviews();
       setReviews(res.data.data);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching reviews:', err);
     } finally {
       setLoading(false);
     }
@@ -52,11 +55,16 @@ const Testimonials = () => {
     fetchReviews();
   }, []);
 
+  // Calculate statistics
   const totalReviews = reviews.length;
   const averageRating = totalReviews
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
     : '0';
+  const satisfactionRate = totalReviews
+    ? ((reviews.filter(r => r.rating >= 4).length / totalReviews) * 100).toFixed(0)
+    : '98';
 
+  // Form validation
   const validate = () => {
     const newErrors = {};
     if (!form.name.trim()) newErrors.name = 'Required';
@@ -81,7 +89,7 @@ const Testimonials = () => {
       });
       setSubmitted(true);
       setForm({ name: '', company: '', rating: 5, comment: '' });
-      fetchReviews(); // refresh to show newly approved reviews (when approved)
+      fetchReviews(); // refresh the list (new review will appear after admin approval)
     } catch (err) {
       setSubmitError(err.response?.data?.message || 'Submission failed. Please try again.');
     }
@@ -99,196 +107,284 @@ const Testimonials = () => {
     setSubmitError(null);
   };
 
+  // Stats data
+  const stats = [
+    { icon: <Star size={24} />, value: `${averageRating}/5`, label: 'Average Rating', color: '#f59e0b' },
+    { icon: <Users size={24} />, value: `${totalReviews}+`, label: 'Verified Reviews', color: '#6366f1' },
+    { icon: <Award size={24} />, value: `${satisfactionRate}%`, label: 'Satisfaction Rate', color: '#10b981' },
+    { icon: <Globe size={24} />, value: '500+', label: 'Global Clients', color: '#06b6d4' },
+  ];
+
   return (
-    <div>
-      {/* Hero Section – vibrant gradient with animated blobs */}
-      <div className="relative overflow-hidden border-b border-indigo-100 bg-gradient-to-br from-slate-50 via-white to-indigo-50/70">
-        <div className="absolute top-0 -left-48 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000" />
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="inline-flex items-center gap-2 bg-white/50 backdrop-blur-sm rounded-full px-3 py-1 mb-3">
-            <Sparkles className="w-3 h-3 text-indigo-600" />
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">Client Stories</p>
+    <div style={{ background: '#030712', paddingTop: '80px' }}>
+      {/* Hero Section */}
+      <section style={{
+        padding: '80px 24px 60px',
+        background: 'linear-gradient(180deg, #060f24 0%, #030712 100%)',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '600px', height: '400px',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          style={{ position: 'relative' }}
+        >
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            padding: '6px 16px', borderRadius: '999px',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            marginBottom: '24px',
+          }}>
+            <Star size={14} color="#f59e0b" fill="#f59e0b" />
+            <span style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 500 }}>Client Testimonials</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Customer <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Testimonials</span>
+          <h1 style={{ color: '#f1f5f9', marginBottom: '20px', fontSize: 'clamp(3rem, 8vw, 5.5rem)',  // Much larger, responsive
+            fontWeight: 'bold',
+            lineHeight: 1.2,
+            letterSpacing: '-0.02em', }}>
+            What Our{' '}
+            <span style={{
+              background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
+              Clients Say
+            </span>
           </h1>
-          <p className="text-lg text-gray-600">See what our clients say about working with AI Solutions.</p>
+          <p style={{ color: '#64748b', fontSize: '1.1rem', maxWidth: '560px', margin: '0 auto', lineHeight: 1.7 }}>
+            Real results from real clients across healthcare, fintech, logistics, and more.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* Stats Cards */}
+      <section style={{
+        padding: '60px 24px',
+        borderBottom: '1px solid rgba(99, 102, 241, 0.08)',
+      }}>
+        <div style={{
+          maxWidth: '900px', margin: '0 auto',
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '32px', textAlign: 'center',
+        }}>
+          {stats.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              style={{
+                padding: '28px',
+                borderRadius: '14px',
+                background: 'rgba(10, 18, 42, 0.7)',
+                border: '1px solid rgba(99, 102, 241, 0.12)',
+              }}
+            >
+              <div style={{ color: stat.color, marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                {stat.icon}
+              </div>
+              <div style={{
+                fontSize: '2rem', fontWeight: 700,
+                background: `linear-gradient(135deg, ${stat.color}, ${stat.color}aa)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
+                {stat.value}
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '6px' }}>{stat.label}</div>
+            </motion.div>
+          ))}
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-        {/* Stats Cards – redesigned with gradients and icons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-          {/* Average Rating Card – vibrant gradient */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-5xl font-black text-white mb-1">{averageRating}</div>
-                <div className="text-xs font-bold uppercase tracking-wider text-indigo-200">Average Rating</div>
-              </div>
-              <ThumbsUp className="w-8 h-8 text-white/30 group-hover:text-white/50 transition-colors" />
+      {/* Testimonials Grid */}
+      <section style={{ padding: '80px 24px 120px' }}>
+        <div style={{
+          maxWidth: '1280px', margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+          gap: '28px',
+        }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '60px' }}>
+              <div className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              <p style={{ color: '#64748b', marginTop: '16px' }}>Loading reviews...</p>
             </div>
-            <div className="flex gap-0.5 mt-4">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-              ))}
+          ) : reviews.length === 0 ? (
+            <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '60px', color: '#64748b' }}>
+              No reviews yet. Be the first to share your experience!
             </div>
-          </div>
-
-          {/* Verified Reviews Card */}
-          <div className="relative overflow-hidden border border-indigo-100 bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-4xl font-black text-gray-900 mb-1">{totalReviews}+</div>
-                <div className="text-xs font-bold uppercase tracking-wider text-gray-500">Verified Reviews</div>
-              </div>
-              <Users className="w-7 h-7 text-indigo-400 group-hover:text-indigo-500 transition-colors" />
-            </div>
-            <div className="mt-3 flex items-center gap-1 text-xs text-emerald-600">
-              <CheckCircle className="w-3 h-3" /> All verified
-            </div>
-          </div>
-
-          {/* Satisfaction Rate Card */}
-          <div className="relative overflow-hidden border border-indigo-100 bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-4xl font-black text-gray-900 mb-1">98%</div>
-                <div className="text-xs font-bold uppercase tracking-wider text-gray-500">Satisfaction Rate</div>
-              </div>
-              <Sparkles className="w-7 h-7 text-indigo-400 group-hover:text-indigo-500 transition-colors" />
-            </div>
-            <div className="mt-3 w-full bg-gray-100 rounded-full h-1.5">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full w-[98%]" />
-            </div>
-          </div>
-
-          {/* Global Clients Card */}
-          <div className="relative overflow-hidden border border-indigo-100 bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-4xl font-black text-gray-900 mb-1">500+</div>
-                <div className="text-xs font-bold uppercase tracking-wider text-gray-500">Global Clients</div>
-              </div>
-              <Globe className="w-7 h-7 text-indigo-400 group-hover:text-indigo-500 transition-colors" />
-            </div>
-            <div className="mt-3 text-xs text-gray-400">Trusted worldwide</div>
-          </div>
-        </div>
-
-        {/* Testimonials Grid – enhanced cards with hover effects */}
-        {loading ? (
-          <div className="text-center py-16">
-            <div className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-            <p className="mt-3 text-gray-500">Loading reviews...</p>
-          </div>
-        ) : reviews.length === 0 ? (
-          <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
-            <p className="text-gray-500">No reviews yet. Be the first to share your experience!</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-8 mb-16">
-            {reviews.map((review, idx) => (
-              <div
+          ) : (
+            reviews.map((review, idx) => (
+              <motion.div
                 key={review._id}
-                className="group relative bg-white rounded-2xl border border-gray-100 p-8 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-indigo-200"
-                style={{ animationDelay: `${idx * 0.1}s` }}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.6, delay: idx * 0.05 }}
+                style={{
+                  padding: '36px',
+                  borderRadius: '18px',
+                  background: 'rgba(10, 18, 42, 0.7)',
+                  border: '1px solid rgba(99, 102, 241, 0.12)',
+                  backdropFilter: 'blur(20px)',
+                  position: 'relative',
+                  transition: 'all 0.3s ease',
+                }}
+                whileHover={{
+                  y: -4,
+                  borderColor: '#6366f140',
+                  boxShadow: '0 20px 50px rgba(99, 102, 241, 0.15)',
+                }}
               >
-                {/* Decorative quote mark */}
-                <div className="absolute top-6 right-8 text-7xl text-indigo-100 font-serif leading-none select-none group-hover:text-indigo-200 transition-colors">
-                  "
+                {/* Quote icon */}
+                <div style={{
+                  position: 'absolute', top: '28px', right: '28px',
+                  color: '#6366f1', opacity: 0.2,
+                }}>
+                  <Quote size={40} />
                 </div>
-                {/* Rating stars */}
-                <div className="flex gap-0.5 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 transition-all ${
-                        i < review.rating
-                          ? 'fill-amber-400 text-amber-400 drop-shadow-sm'
-                          : 'text-gray-200 fill-gray-100'
-                      }`}
-                    />
+
+                {/* Stars */}
+                <div style={{ display: 'flex', gap: '3px', marginBottom: '20px' }}>
+                  {Array.from({ length: review.rating }).map((_, j) => (
+                    <Star key={j} size={16} fill="#f59e0b" color="#f59e0b" />
+                  ))}
+                  {Array.from({ length: 5 - review.rating }).map((_, j) => (
+                    <Star key={`empty-${j}`} size={16} color="#334155" />
                   ))}
                 </div>
-                {/* Comment */}
-                <p className="text-gray-700 leading-relaxed mb-6 relative z-10 text-lg">
+
+                {/* Comment text */}
+                <p style={{
+                  color: '#94a3b8', lineHeight: 1.8, marginBottom: '28px',
+                  fontSize: '0.95rem', fontStyle: 'italic',
+                }}>
                   "{review.comment}"
                 </p>
-                {/* User info */}
-                <div className="flex items-center gap-4 pt-5 border-t border-gray-100">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-base font-bold text-indigo-600 flex-shrink-0 shadow-sm">
+
+                {/* Result badge (mock – you can replace with actual data if stored) */}
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '4px 12px', borderRadius: '999px', fontSize: '0.8rem',
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  color: '#a5b4fc', fontWeight: 600, marginBottom: '24px',
+                }}>
+                  <Zap size={12} />
+                  Verified Client
+                </div>
+
+                {/* Author info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #6366f1, #818cf8)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0,
+                  }}>
                     {review.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-base font-bold text-gray-900">{review.name}</p>
-                    <p className="text-sm text-gray-500">{review.company}</p>
+                    <div style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '0.95rem' }}>{review.name}</div>
+                    <div style={{ color: '#64748b', fontSize: '0.8rem' }}>{review.company}</div>
                   </div>
-                  <span className="ml-auto flex items-center gap-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full">
-                    <CheckCircle className="w-3.5 h-3.5" /> Verified
-                  </span>
+                  <div style={{
+                    marginLeft: 'auto',
+                    padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    color: '#475569',
+                  }}>
+                    Customer
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              </motion.div>
+            ))
+          )}
+        </div>
 
-        {/* Write a Review Section – upgraded form with gradient border */}
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-indigo-50 via-white to-purple-50 border border-indigo-100 shadow-md">
-          {/* Header – clickable with icon */}
+        {/* Write a Review Section – stylish collapsible form */}
+        <div style={{
+          maxWidth: '800px', margin: '80px auto 0',
+          borderRadius: '20px',
+          background: 'rgba(10, 18, 42, 0.7)',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          backdropFilter: 'blur(20px)',
+          overflow: 'hidden',
+        }}>
           <div
-            className="flex items-center justify-between p-6 cursor-pointer hover:bg-white/50 transition-all duration-200 group"
             onClick={() => {
               setFormOpen(!formOpen);
               setSubmitted(false);
               setErrors({});
               setSubmitError(null);
             }}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '20px 28px',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-                <PenLine className="w-6 h-6 text-white" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '14px',
+                background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <PenLine size={22} color="white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Share Your Experience</h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <h3 style={{ color: '#f1f5f9', fontSize: '1.25rem', fontWeight: 600 }}>Share Your Experience</h3>
+                <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>
                   Have you worked with AI Solutions? Leave a review — it helps others!
                 </p>
               </div>
             </div>
-            <div
-              className={`w-8 h-8 border-2 border-indigo-200 rounded-full flex items-center justify-center transition-all duration-300 ${
-                formOpen ? 'rotate-45 bg-indigo-50 border-indigo-400' : 'group-hover:border-indigo-400'
-              }`}
-            >
-              {formOpen ? (
-                <X className="w-4 h-4 text-indigo-600" />
-              ) : (
-                <span className="text-indigo-600 text-xl leading-none">+</span>
-              )}
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '50%',
+              border: `2px solid ${formOpen ? '#6366f1' : '#334155'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}>
+              {formOpen ? <X size={18} color="#6366f1" /> : <span style={{ color: '#94a3b8', fontSize: '24px', lineHeight: 1 }}>+</span>}
             </div>
           </div>
 
           {formOpen && (
-            <div className="border-t border-indigo-100 p-6 bg-white/80 backdrop-blur-sm">
+            <div style={{ borderTop: '1px solid rgba(99, 102, 241, 0.15)', padding: '28px' }}>
               {submitted ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-10 h-10 text-emerald-600" />
+                <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 20px',
+                  }}>
+                    <CheckCircle size={32} color="#10b981" />
                   </div>
-                  <h4 className="text-2xl font-bold text-gray-900 mb-2">Review Submitted!</h4>
-                  <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                  <h4 style={{ color: '#f1f5f9', fontSize: '1.5rem', fontWeight: 600, marginBottom: '12px' }}>Review Submitted!</h4>
+                  <p style={{ color: '#94a3b8', marginBottom: '28px' }}>
                     Thank you for your feedback. Our team will review and publish it shortly.
                   </p>
                   <button
-                    onClick={() => {
-                      setSubmitted(false);
-                      setFormOpen(false);
+                    onClick={closeForm}
+                    style={{
+                      padding: '10px 24px', borderRadius: '30px', border: '1px solid #6366f1',
+                      background: 'transparent', color: '#a5b4fc', fontWeight: 500, cursor: 'pointer',
                     }}
-                    className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 border-2 border-indigo-200 px-6 py-2.5 rounded-full hover:border-indigo-500 hover:bg-indigo-50 transition-all"
                   >
                     Close
                   </button>
@@ -296,71 +392,100 @@ const Testimonials = () => {
               ) : (
                 <form onSubmit={handleSubmit}>
                   {submitError && (
-                    <div className="mb-5 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm">
+                    <div style={{
+                      background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171', padding: '12px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem',
+                    }}>
                       {submitError}
                     </div>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                        Full Name <span className="text-indigo-600">*</span>
+                      <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '8px' }}>
+                        FULL NAME *
                       </label>
                       <input
                         type="text"
                         value={form.name}
                         onChange={(e) => field('name', e.target.value)}
                         placeholder="Jane Smith"
-                        className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        style={{
+                          width: '100%', padding: '12px 16px', borderRadius: '12px',
+                          background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(99, 102, 241, 0.2)',
+                          color: '#e2e8f0', outline: 'none', transition: 'border 0.2s',
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#6366f1'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(99, 102, 241, 0.2)'}
                       />
-                      {errors.name && <p className="mt-1 text-xs text-rose-500">{errors.name}</p>}
+                      {errors.name && <p style={{ color: '#f87171', fontSize: '0.7rem', marginTop: '4px' }}>{errors.name}</p>}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                        Company <span className="text-indigo-600">*</span>
+                      <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '8px' }}>
+                        COMPANY *
                       </label>
                       <input
                         type="text"
                         value={form.company}
                         onChange={(e) => field('company', e.target.value)}
                         placeholder="Acme Corp"
-                        className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        style={{
+                          width: '100%', padding: '12px 16px', borderRadius: '12px',
+                          background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(99, 102, 241, 0.2)',
+                          color: '#e2e8f0', outline: 'none',
+                        }}
                       />
-                      {errors.company && <p className="mt-1 text-xs text-rose-500">{errors.company}</p>}
+                      {errors.company && <p style={{ color: '#f87171', fontSize: '0.7rem', marginTop: '4px' }}>{errors.company}</p>}
                     </div>
                   </div>
 
-                  <div className="mb-6">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                      Your Rating <span className="text-indigo-600">*</span>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '8px' }}>
+                      YOUR RATING *
                     </label>
                     <StarPicker value={form.rating} onChange={(n) => field('rating', n)} />
-                    {errors.rating && <p className="mt-1 text-xs text-rose-500">{errors.rating}</p>}
+                    {errors.rating && <p style={{ color: '#f87171', fontSize: '0.7rem', marginTop: '4px' }}>{errors.rating}</p>}
                   </div>
 
-                  <div className="mb-8">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                      Your Review <span className="text-indigo-600">*</span>
+                  <div style={{ marginBottom: '28px' }}>
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '8px' }}>
+                      YOUR REVIEW *
                     </label>
                     <textarea
+                      rows={4}
                       value={form.comment}
                       onChange={(e) => field('comment', e.target.value)}
-                      rows={4}
                       placeholder="Share your experience with AI Solutions..."
-                      className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all resize-none"
+                      style={{
+                        width: '100%', padding: '12px 16px', borderRadius: '12px',
+                        background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(99, 102, 241, 0.2)',
+                        color: '#e2e8f0', outline: 'none', resize: 'vertical',
+                      }}
                     />
-                    {errors.comment && <p className="mt-1 text-xs text-rose-500">{errors.comment}</p>}
+                    {errors.comment && <p style={{ color: '#f87171', fontSize: '0.7rem', marginTop: '4px' }}>{errors.comment}</p>}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-gray-100">
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" /> Reviews are moderated and published within 1–2 business days.
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', alignItems: 'center', borderTop: '1px solid rgba(99, 102, 241, 0.15)', paddingTop: '24px' }}>
+                    <p style={{ color: '#475569', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Sparkles size={12} /> Reviews are moderated and published within 1–2 days.
                     </p>
                     <button
                       type="submit"
-                      className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                      style={{
+                        padding: '10px 28px', borderRadius: '30px',
+                        background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                        border: 'none', color: 'white', fontWeight: 600, cursor: 'pointer',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 8px 20px rgba(99, 102, 241, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = 'none';
+                      }}
                     >
                       Submit Review
-                      <span className="group-hover:translate-x-1 transition-transform">→</span>
                     </button>
                   </div>
                 </form>
@@ -368,7 +493,7 @@ const Testimonials = () => {
             </div>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

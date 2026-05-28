@@ -1,211 +1,290 @@
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Check, ArrowRight, Sparkles, Zap, Shield } from 'lucide-react';
+import {
+  Brain, Cpu, Zap, BarChart3, Globe, Shield,
+  CheckCircle, ArrowRight, MessageSquare, Database, Code2, Layers
+} from 'lucide-react';
+
+const SERVICES = [
+  {
+    icon: <Brain size={32} />,
+    color: '#6366f1',
+    title: 'AI-Powered Virtual Assistant',
+    subtitle: 'Intelligent Conversational AI',
+    desc: 'Our virtual assistant platform uses advanced natural language processing to understand context, intent, and sentiment. It handles thousands of simultaneous conversations while maintaining personalised experiences for each user.',
+    features: [
+      'Multi-language support (40+ languages)',
+      'Context-aware conversation management',
+      'Seamless human escalation with full context transfer',
+      'Integration with CRM, ERP, and helpdesk systems',
+      'Real-time analytics and conversation insights',
+      'Custom personality and brand voice configuration',
+    ],
+    useCases: ['Customer Support', 'HR Automation', 'Sales Assistance', 'IT Helpdesk'],
+  },
+  {
+    icon: <Code2 size={32} />,
+    color: '#06b6d4',
+    title: 'Custom Software Development',
+    subtitle: 'Bespoke Engineering Solutions',
+    desc: 'From greenfield applications to complex system modernisation, our engineering teams deliver production-ready software built with modern, scalable architectures. We specialise in AI-augmented development workflows.',
+    features: [
+      'Full-stack web and mobile development',
+      'Microservices and API-first architecture',
+      'AI/ML model integration and fine-tuning',
+      'Agile delivery with bi-weekly demonstrations',
+      'Comprehensive testing (unit, integration, e2e)',
+      'Post-launch maintenance and optimisation',
+    ],
+    useCases: ['Enterprise Platforms', 'SaaS Products', 'Mobile Apps', 'API Development'],
+  },
+  {
+    icon: <Zap size={32} />,
+    color: '#10b981',
+    title: 'Rapid Prototyping Solutions',
+    subtitle: 'From Idea to Working Demo in Weeks',
+    desc: 'Validate your product vision before committing to full-scale development. Our prototype sprints combine AI-powered development tools with experienced engineers to deliver clickable, testable prototypes at record speed.',
+    features: [
+      'Two-week prototype sprint methodology',
+      'Interactive, testable prototypes (not mockups)',
+      'User testing and feedback integration',
+      'Technology stack recommendation and validation',
+      'Detailed technical specification for production',
+      'Handoff-ready codebase for your team',
+    ],
+    useCases: ['Startup MVPs', 'Innovation Labs', 'Concept Validation', 'Investor Demos'],
+  },
+  {
+    icon: <BarChart3 size={32} />,
+    color: '#f59e0b',
+    title: 'Data Analytics & Intelligence',
+    subtitle: 'Turn Data into Competitive Advantage',
+    desc: 'Our AI analytics platform ingests data from any source, applies machine learning models to identify patterns, and delivers actionable insights through beautiful, interactive dashboards that update in real-time.',
+    features: [
+      'Real-time data pipeline architecture',
+      'Predictive modelling and forecasting',
+      'Natural language querying ("Ask your data")',
+      'Automated anomaly detection and alerts',
+      'Custom KPI dashboards and reporting',
+      'Data governance and compliance tools',
+    ],
+    useCases: ['Business Intelligence', 'Predictive Maintenance', 'Sales Forecasting', 'Risk Management'],
+  },
+  {
+    icon: <Globe size={32} />,
+    color: '#8b5cf6',
+    title: 'Digital Transformation',
+    subtitle: 'Strategic AI Adoption Roadmap',
+    desc: 'We guide organisations through the complex journey of digital transformation — from initial AI readiness assessment to full-scale deployment. Our consultants have delivered transformation programmes for enterprises across 15 industries.',
+    features: [
+      'AI readiness and maturity assessment',
+      'Technology selection and vendor evaluation',
+      'Change management and training programmes',
+      'Process automation identification and prioritisation',
+      'ROI modelling and business case development',
+      'Ongoing optimisation and scaling support',
+    ],
+    useCases: ['Legacy Modernisation', 'Process Automation', 'Cultural Change', 'AI Strategy'],
+  },
+  {
+    icon: <Database size={32} />,
+    color: '#ec4899',
+    title: 'Cloud Integration & Architecture',
+    subtitle: 'Scalable, Secure Cloud Infrastructure',
+    desc: 'Design and implement cloud architectures that can handle millions of users, petabytes of data, and mission-critical workloads. We specialise in AI/ML infrastructure and cost-optimised cloud deployments.',
+    features: [
+      'Multi-cloud strategy (AWS, Azure, GCP)',
+      'Kubernetes orchestration and DevOps automation',
+      'AI/ML infrastructure (GPUs, data lakes)',
+      'Security hardening and compliance (ISO 27001, SOC 2)',
+      'Cost optimisation — typically 30-40% savings',
+      '99.99% uptime SLA architecture design',
+    ],
+    useCases: ['Cloud Migration', 'AI Infrastructure', 'DevOps Automation', 'Cost Reduction'],
+  },
+];
+
+const fadeUp = {
+  initial: { opacity: 0, y: 40 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-60px' },
+  transition: { duration: 0.7, ease: 'easeOut' },
+};
 
 const Services = () => {
-  const services = [
-    {
-      number: '01',
-      title: 'AI Virtual Assistant',
-      description:
-        'Our AI Virtual Assistant provides intelligent, context-aware support for your customers 24/7. Built on advanced natural language processing, it understands complex queries and delivers accurate responses.',
-      features: [
-        'Natural language understanding and generation',
-        'Multi-language support across 40+ languages',
-        'Integration with existing CRM systems',
-        'Custom training on your proprietary data',
-        'Real-time analytics and reporting dashboard',
-        'Seamless human handoff when needed',
-      ],
-      icon: Sparkles,
-      gradient: 'from-indigo-500 to-purple-500',
-      bgLight: 'bg-indigo-50',
-      numberColor: 'text-indigo-600',
-      glowColor: 'from-indigo-400 to-purple-400',
-    },
-    {
-      number: '02',
-      title: 'Prototyping Solutions',
-      description:
-        'Accelerate your product development with our AI-powered prototyping tools. From concept to working prototype in record time, our platform helps teams iterate faster and smarter.',
-      features: [
-        'Automated code generation from designs',
-        'AI-assisted component libraries',
-        'Real-time collaboration features',
-        'Version control and rollback capabilities',
-        'Export to production-ready code',
-        'Integration with popular design tools',
-      ],
-      icon: Zap,
-      gradient: 'from-blue-500 to-cyan-500',
-      bgLight: 'bg-blue-50',
-      numberColor: 'text-blue-600',
-      glowColor: 'from-blue-400 to-cyan-400',
-    },
-    {
-      number: '03',
-      title: 'Automation Platform',
-      description:
-        'Transform your business operations with our comprehensive automation platform. Reduce manual tasks, minimize errors, and free your team to focus on strategic initiatives.',
-      features: [
-        'Visual workflow automation builder',
-        'API integrations with 100+ services',
-        'Intelligent document processing (IDP)',
-        'Predictive analytics and business insights',
-        'Custom automation rules engine',
-        'Enterprise-grade security and compliance',
-      ],
-      icon: Shield,
-      gradient: 'from-emerald-500 to-teal-500',
-      bgLight: 'bg-emerald-50',
-      numberColor: 'text-emerald-600',
-      glowColor: 'from-emerald-400 to-teal-400',
-    },
-  ];
-
   return (
-    <>
-      {/* Page Header */}
-      <div className="relative overflow-hidden border-b border-indigo-100 bg-gradient-to-br from-slate-50 via-white to-indigo-50/70">
-        {/* Animated background blobs */}
-        <div className="absolute top-0 -left-48 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000" />
-        
-        <div className="container mx-auto px-4 py-16 relative">
-          <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 mb-3 bg-white/50 backdrop-blur-sm px-3 py-1 rounded-full">
-            <Sparkles className="w-3 h-3" />
-            WHAT WE OFFER
-          </p>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Our <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Services</span>
+    <div style={{ background: '#030712', paddingTop: '80px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {/* Hero */}
+      <section style={{
+        padding: '80px 24px 60px',
+        background: 'linear-gradient(180deg, #060f24 0%, #030712 100%)',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)',
+          width: '800px', height: '400px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          style={{ position: 'relative' }}
+        >
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            padding: '6px 16px', borderRadius: '999px',
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            marginBottom: '24px',
+          }}>
+            <Layers size={14} color="#6366f1" />
+            <span style={{ color: '#a5b4fc', fontSize: '0.85rem', fontWeight: 500 }}>Our Services</span>
+          </div>
+          <h1 style={{
+            color: '#f1f5f9',
+            marginBottom: '20px',
+            fontSize: 'clamp(3rem, 8vw, 5.5rem)',  // Much larger, responsive
+            fontWeight: 'bold',
+            lineHeight: 1.2,
+            letterSpacing: '-0.02em',
+          }}>
+            AI Solutions for Every{' '}
+            <span style={{
+              background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
+              Industry
+            </span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl">
-            Comprehensive AI solutions designed to transform your business operations
-            and accelerate innovation.
+          <p style={{ color: '#64748b', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.7 }}>
+            We offer a comprehensive suite of AI-powered services designed to solve real business challenges and deliver measurable results.
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </section>
 
-      <div className="container mx-auto px-4 py-16">
-        {/* Quick Navigation */}
-        <div className="flex flex-wrap gap-3 mb-16 pb-8 border-b border-gray-200">
-          {services.map((service, idx) => (
-            <a
-              key={idx}
-              href={`#service-${idx}`}
-              className="group flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
+      {/* Services List */}
+      <section style={{ padding: '80px 24px 120px' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '48px' }}>
+          {SERVICES.map((service) => (
+            <motion.div
+              key={service.title}
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ duration: 0.7, delay: 0.05 }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+                gap: '48px',
+                padding: '48px',
+                borderRadius: '20px',
+                background: 'rgba(10, 18, 42, 0.7)',
+                border: '1px solid rgba(99, 102, 241, 0.12)',
+                backdropFilter: 'blur(20px)',
+                alignItems: 'start',
+              }}
             >
-              <span className={`font-black ${service.numberColor} text-base group-hover:scale-110 transition-transform duration-200`}>
-                {service.number}
-              </span>
-              {service.title}
-              <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </a>
-          ))}
-        </div>
-
-        {/* Services List */}
-        <div className="space-y-20">
-          {services.map((service, idx) => (
-            <div key={idx} id={`service-${idx}`} className="scroll-mt-20 group/service">
-              <div className="grid md:grid-cols-5 gap-8 md:gap-12">
-                {/* Left Column (Sticky) — enhanced number visibility */}
-                <div className="md:col-span-2">
-                  <div className="md:sticky md:top-24">
-                    {/* Large, vibrant service number with glow */}
-                    <div className="relative inline-block mb-4">
-                      {/* Soft blurred glow behind number */}
-                      <div className={`absolute -inset-2 bg-gradient-to-r ${service.glowColor} rounded-2xl blur-xl opacity-30 group-hover/service:opacity-60 transition-opacity duration-500`} />
-                      <span className={`relative text-7xl md:text-7xl font-black leading-none tracking-tighter ${service.numberColor} drop-shadow-sm select-none block`}>
-                        {service.number}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 mt-2 mb-4">
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${service.gradient} flex items-center justify-center shadow-md`}>
-                        <service.icon className="w-5 h-5 text-white" />
-                      </div>
-                      <h2 className="text-3xl font-bold text-gray-900">
-                        {service.title}
-                      </h2>
-                    </div>
-                    
-                    <p className="text-gray-600 leading-relaxed mb-6">
-                      {service.description}
-                    </p>
-                    
-                    <Link
-                      to="/contact"
-                      className="group/btn inline-flex items-center gap-2 text-sm font-bold text-indigo-600 border-2 border-indigo-200 px-5 py-2.5 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 hover:shadow-md transition-all duration-200"
-                    >
-                      Get Started 
-                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </Link>
-                  </div>
+              {/* Left side: description & CTA */}
+              <div>
+                <div style={{
+                  width: '64px', height: '64px', borderRadius: '16px',
+                  background: `${service.color}15`,
+                  border: `1px solid ${service.color}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: service.color, marginBottom: '24px',
+                }}>
+                  {service.icon}
                 </div>
-
-                {/* Right Column – Features Table (elevated card) */}
-                <div className="md:col-span-3">
-                  <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className={`px-6 py-4 ${service.bgLight} border-b border-gray-100`}>
-                      <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-2">
-                        <span className="w-8 h-px bg-indigo-300"></span>
-                        Key Features
-                      </p>
-                    </div>
-                    <div className="divide-y divide-gray-50">
-                      {service.features.map((feature, fIdx) => (
-                        <div
-                          key={fIdx}
-                          className="px-6 py-4 flex items-start gap-4 hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-transparent transition-all duration-200 group/feature"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover/feature:scale-110 transition-transform">
-                            <Check className="w-3.5 h-3.5 text-indigo-600" />
-                          </div>
-                          <span className="text-sm text-gray-700 group-hover/feature:text-gray-900 font-medium">
-                            {feature}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <span style={{ color: service.color, fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  {service.subtitle}
+                </span>
+                <h2 style={{ color: '#f1f5f9', marginBottom: '16px', fontSize: '1.8rem', fontWeight: 600 }}>{service.title}</h2>
+                <p style={{ color: '#64748b', lineHeight: 1.8, marginBottom: '28px', fontSize: '0.95rem' }}>
+                  {service.desc}
+                </p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '32px' }}>
+                  {service.useCases.map(uc => (
+                    <span key={uc} style={{
+                      padding: '4px 12px', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 500,
+                      background: `${service.color}12`,
+                      border: `1px solid ${service.color}25`,
+                      color: service.color,
+                    }}>
+                      {uc}
+                    </span>
+                  ))}
                 </div>
+                <Link
+                  to="/contact"
+                  style={{
+                    padding: '12px 24px', borderRadius: '10px', textDecoration: 'none',
+                    color: 'white', fontWeight: 600, fontSize: '0.95rem',
+                    background: `linear-gradient(135deg, ${service.color}, ${service.color}cc)`,
+                    display: 'inline-flex', alignItems: 'center', gap: '8px',
+                  }}
+                >
+                  Get a Quote <ArrowRight size={16} />
+                </Link>
               </div>
 
-              {idx < services.length - 1 && (
-                <div className="mt-16 relative">
-                  <div className="absolute left-1/2 -translate-x-1/2 w-16 h-px bg-gradient-to-r from-transparent via-indigo-300 to-transparent" />
+              {/* Right side: features list */}
+              <div>
+                <h4 style={{ color: '#94a3b8', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.8rem' }}>
+                  What's Included
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {service.features.map(feature => (
+                    <div key={feature} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <CheckCircle size={18} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                      <span style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>{feature}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            </motion.div>
           ))}
         </div>
+      </section>
 
-        {/* Call to Action Section — vibrant gradient border & background */}
-        <div className="relative mt-20 rounded-2xl overflow-hidden bg-gradient-to-r from-indigo-50 via-white to-purple-50 border border-indigo-100 p-8 md:p-12 text-center shadow-md hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-200 rounded-full blur-3xl opacity-20" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-200 rounded-full blur-3xl opacity-20" />
-          
-          <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 mb-3 bg-white/60 backdrop-blur-sm px-3 py-1 rounded-full">
-            <Sparkles className="w-3 h-3" />
-            Ready to Start?
-          </p>
-          <h3 className="text-3xl font-bold text-gray-900 mb-4">
-            Let's Build Something <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Together</span>
-          </h3>
-          <p className="text-gray-600 mb-8 max-w-xl mx-auto">
-            Tell us about your project and we'll recommend the best solution for your needs.
+      {/* CTA Section */}
+      <section style={{ padding: '0 24px 120px' }}>
+        <motion.div
+          {...fadeUp}
+          style={{
+            maxWidth: '900px', margin: '0 auto',
+            borderRadius: '24px', padding: '64px 48px',
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.06) 100%)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
+          }}
+        >
+          <MessageSquare size={48} color="#6366f1" style={{ marginBottom: '24px' }} />
+          <h2 style={{ color: '#f1f5f9', marginBottom: '16px', fontSize: '2rem', fontWeight: 600 }}>
+            Not Sure Which Service Fits You?
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '36px', lineHeight: 1.7 }}>
+            Talk to our solution architects for a free 30-minute consultation. We'll listen to your challenges and recommend the best approach.
           </p>
           <Link
             to="/contact"
-            className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-xl text-sm font-bold shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+            style={{
+              padding: '14px 36px', borderRadius: '10px', textDecoration: 'none',
+              color: 'white', fontWeight: 700, fontSize: '1rem',
+              background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              boxShadow: '0 0 40px rgba(99, 102, 241, 0.3)',
+            }}
           >
-            Contact Our Team 
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 blur-md opacity-0 group-hover:opacity-50 transition-opacity -z-10" />
+            Book Free Consultation <ArrowRight size={18} />
           </Link>
-        </div>
-      </div>
-    </>
+        </motion.div>
+      </section>
+    </div>
   );
 };
 

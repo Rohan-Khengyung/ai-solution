@@ -1,62 +1,38 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ZoomIn, Images } from 'lucide-react';
 import { getGalleryItems } from '../services/api';
-import { X, ZoomIn, Calendar, Tag, Sparkles } from 'lucide-react';
 
-// Helper to extract year from date string
-const getYearFromDate = (dateString) => {
-  if (!dateString) return new Date().getFullYear().toString();
-  return new Date(dateString).getFullYear().toString();
-};
-
-// Enhanced category colors with gradients
-const CATEGORY_STYLES = {
-  Conference: { bg: 'bg-gradient-to-r from-blue-500 to-indigo-500', text: 'text-white', badge: 'from-blue-500 to-indigo-500' },
-  Workshop: { bg: 'bg-gradient-to-r from-violet-500 to-purple-500', text: 'text-white', badge: 'from-violet-500 to-purple-500' },
-  Expo: { bg: 'bg-gradient-to-r from-emerald-500 to-teal-500', text: 'text-white', badge: 'from-emerald-500 to-teal-500' },
-  Awards: { bg: 'bg-gradient-to-r from-amber-500 to-orange-500', text: 'text-white', badge: 'from-amber-500 to-orange-500' },
-  Networking: { bg: 'bg-gradient-to-r from-rose-500 to-pink-500', text: 'text-white', badge: 'from-rose-500 to-pink-500' },
-  Launch: { bg: 'bg-gradient-to-r from-cyan-500 to-sky-500', text: 'text-white', badge: 'from-cyan-500 to-sky-500' },
-  Team: { bg: 'bg-gradient-to-r from-indigo-500 to-blue-500', text: 'text-white', badge: 'from-indigo-500 to-blue-500' },
-  Product: { bg: 'bg-gradient-to-r from-purple-500 to-fuchsia-500', text: 'text-white', badge: 'from-purple-500 to-fuchsia-500' },
-  Event: { bg: 'bg-gradient-to-r from-pink-500 to-rose-500', text: 'text-white', badge: 'from-pink-500 to-rose-500' },
-  Default: { bg: 'bg-gradient-to-r from-gray-500 to-gray-600', text: 'text-white', badge: 'from-gray-500 to-gray-600' },
-};
-
-const getCategoryStyle = (category) => {
-  return CATEGORY_STYLES[category] || CATEGORY_STYLES.Default;
+// Category colors (from sample)
+const CAT_COLORS = {
+  Events: '#6366f1',
+  Team: '#06b6d4',
+  Workshops: '#10b981',
+  Office: '#f59e0b',
+  Conference: '#6366f1',
+  Expo: '#10b981',
+  Awards: '#f59e0b',
+  Networking: '#ec4899',
+  Launch: '#06b6d4',
+  Product: '#8b5cf6',
 };
 
 const Gallery = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeYear, setActiveYear] = useState('All');
   const [lightbox, setLightbox] = useState(null);
-  
-  const defaultCategories = ['All', 'Conference', 'Workshop', 'Expo', 'Awards', 'Networking', 'Launch'];
-  const defaultYears = ['All', '2026', '2025', '2024'];
-  
-  const [categories, setCategories] = useState(defaultCategories);
-  const [years, setYears] = useState(defaultYears);
+
+  // Extract unique categories from fetched items
+  const categories = ['All', ...new Set(items.map(item => item.category).filter(Boolean))];
 
   useEffect(() => {
     const fetchGallery = async () => {
       try {
         const res = await getGalleryItems();
-        const data = res.data.data;
-        const enriched = data.map(item => ({
-          ...item,
-          year: getYearFromDate(item.createdAt),
-        }));
-        const uniqueCategoriesFromData = [...new Set(enriched.map(i => i.category).filter(Boolean))];
-        const uniqueYearsFromData = [...new Set(enriched.map(i => i.year))].sort().reverse();
-        const allCategories = ['All', ...new Set([...uniqueCategoriesFromData, ...defaultCategories.slice(1)])];
-        const allYears = ['All', ...new Set([...uniqueYearsFromData, ...defaultYears.slice(1)])].sort().reverse();
-        setCategories(allCategories);
-        setYears(allYears);
-        setItems(enriched);
+        setItems(res.data.data);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching gallery:', err);
       } finally {
         setLoading(false);
       }
@@ -64,223 +40,249 @@ const Gallery = () => {
     fetchGallery();
   }, []);
 
-  const filtered = items.filter(item => {
-    const catMatch = activeCategory === 'All' || item.category === activeCategory;
-    const yearMatch = activeYear === 'All' || item.year === activeYear;
-    return catMatch && yearMatch;
-  });
+  const filtered = activeCategory === 'All'
+    ? items
+    : items.filter(item => item.category === activeCategory);
 
   return (
-    <div className="bg-white">
-      {/* Hero Header – vibrant gradient with animated blobs */}
-      <div className="relative overflow-hidden border-b border-indigo-100">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900" />
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #a5b4fc 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-        <div className="absolute top-0 -right-32 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-30 animate-pulse" />
-        <div className="absolute bottom-0 -left-32 w-96 h-96 bg-purple-500 rounded-full blur-3xl opacity-30 animate-pulse delay-1000" />
-        
-        <div className="relative max-w-7xl mx-auto px-8 py-24">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
-            <p className="text-xs font-bold uppercase tracking-wider text-indigo-200">Visual Archive</p>
+    <div style={{ background: '#030712', paddingTop: '80px' }}>
+      {/* Hero Section */}
+      <section style={{
+        padding: '80px 24px 60px',
+        background: 'linear-gradient(180deg, #060f24 0%, #030712 100%)',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '600px', height: '350px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.07) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          style={{ position: 'relative' }}
+        >
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            padding: '6px 16px', borderRadius: '999px',
+            background: 'rgba(139, 92, 246, 0.08)',
+            border: '1px solid rgba(139, 92, 246, 0.2)',
+            marginBottom: '24px',
+          }}>
+            <Images size={14} color="#a78bfa" />
+            <span style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 500 }}>Photo Gallery</span>
           </div>
-          <h1 className="text-5xl md:text-6xl font-black text-white mb-4">
-            Photo <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">Gallery</span>
+          <h1 style={{ 
+            color: '#f1f5f9', 
+            marginBottom: '20px',
+            fontSize: 'clamp(3rem, 8vw, 5.5rem)',  // Much larger, responsive
+            fontWeight: 'bold',
+            lineHeight: 1.2,
+            letterSpacing: '-0.02em'
+           }}>
+            Our{' '}
+            <span style={{
+              background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
+              Moments
+            </span>
           </h1>
-          <p className="text-lg text-indigo-200 max-w-xl">
-            Browse highlights from our conferences, workshops, product launches, and community events.
+          <p style={{ color: '#64748b', fontSize: '1.1rem', maxWidth: '520px', margin: '0 auto', lineHeight: 1.7 }}>
+            Behind the scenes at AI-Solutions — from team workshops and product launches to our community events.
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-8 py-16">
-        {/* Filters – animated, with gradient active states */}
-        <div className="flex flex-wrap items-center gap-4 mb-12">
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => {
-              const isActive = activeCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`relative px-5 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg hover:shadow-xl'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:shadow-md'
-                  }`}
-                >
-                  {cat === 'All' ? cat : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  {isActive && (
-                    <span className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 blur-md opacity-40 -z-10" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div className="w-px h-6 bg-gradient-to-b from-transparent via-gray-300 to-transparent" />
-          <div className="flex gap-2 flex-wrap">
-            {years.map((yr) => {
-              const isActive = activeYear === yr;
-              return (
-                <button
-                  key={yr}
-                  onClick={() => setActiveYear(yr)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
-                    isActive
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-400'
-                  }`}
-                >
-                  {yr}
-                </button>
-              );
-            })}
-          </div>
-          <span className="ml-auto text-sm text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">
-            {filtered.length} {filtered.length === 1 ? 'photo' : 'photos'}
-          </span>
+      {/* Filter Bar */}
+      <section style={{ padding: '28px 24px', borderBottom: '1px solid rgba(99, 102, 241, 0.08)' }}>
+        <div style={{
+          maxWidth: '1280px', margin: '0 auto',
+          display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center',
+        }}>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                padding: '7px 20px', borderRadius: '999px', cursor: 'pointer',
+                fontSize: '0.875rem', fontWeight: 500, transition: 'all 0.2s ease',
+                background: activeCategory === cat
+                  ? 'linear-gradient(135deg, #6366f1, #06b6d4)'
+                  : 'rgba(255,255,255,0.04)',
+                border: activeCategory === cat
+                  ? 'none'
+                  : '1px solid rgba(99, 102, 241, 0.18)',
+                color: activeCategory === cat ? 'white' : '#94a3b8',
+              }}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
+      </section>
 
-        {/* Masonry Grid with fade-in animation */}
+      {/* Gallery Masonry Grid */}
+      <section style={{ padding: '60px 24px 120px' }}>
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="relative w-12 h-12">
-              <div className="absolute inset-0 border-4 border-indigo-200 rounded-full" />
-              <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin" />
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <div style={{ width: '40px', height: '40px', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
-              <ZoomIn className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-gray-400 text-lg">No photos match the selected filters.</p>
+          <div style={{ textAlign: 'center', color: '#64748b', padding: '60px 0' }}>
+            No images in this category.
           </div>
         ) : (
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
-            {filtered.map((item, idx) => {
-              const categoryStyle = getCategoryStyle(item.category);
+          <div style={{
+            maxWidth: '1280px', margin: '0 auto',
+            columns: '3 320px',
+            columnGap: '16px',
+          }}>
+            {filtered.map((item, i) => {
+              const categoryColor = CAT_COLORS[item.category] || '#6366f1';
               return (
-                <div
+                <motion.div
                   key={item._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: i * 0.05 }}
+                  style={{
+                    breakInside: 'avoid',
+                    marginBottom: '16px',
+                    borderRadius: '14px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(99, 102, 241, 0.1)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    display: 'block',
+                  }}
+                  whileHover="hover"
                   onClick={() => setLightbox(item)}
-                  className="group break-inside-avoid rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer"
-                  style={{ animation: `fadeInUp 0.6s ease-out ${idx * 0.05}s both` }}
                 >
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
-                      style={{ aspectRatio: '4/3' }}
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-5">
-                      <div className="flex items-center gap-2 text-white bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
-                        <ZoomIn className="w-4 h-4" />
-                        <span className="text-xs font-medium">View</span>
-                      </div>
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    style={{
+                      width: '100%',
+                      display: 'block',
+                      objectFit: 'cover',
+                    }}
+                  />
+                  {/* Hover overlay */}
+                  <motion.div
+                    variants={{
+                      hover: { opacity: 1 },
+                    }}
+                    initial={{ opacity: 0 }}
+                    style={{
+                      position: 'absolute', inset: 0,
+                      background: 'linear-gradient(180deg, transparent 30%, rgba(3, 7, 18, 0.92) 100%)',
+                      display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                      padding: '20px',
+                      transition: 'opacity 0.3s ease',
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: '999px',
+                      fontSize: '0.72rem', fontWeight: 600, marginBottom: '8px',
+                      background: `${categoryColor}25`,
+                      border: `1px solid ${categoryColor}40`,
+                      color: '#a5b4fc',
+                      width: 'fit-content',
+                    }}>
+                      {item.category}
+                    </span>
+                    <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.9rem' }}>{item.title}</div>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '4px' }}>
+                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : ''}
                     </div>
-                    {/* Category badge on image (corner) */}
-                    {item.category && (
-                      <span className={`absolute top-3 left-3 text-[10px] font-bold px-2 py-1 rounded-md ${categoryStyle.bg} text-white shadow-md`}>
-                        {item.category}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-base font-bold text-gray-900 leading-tight">{item.title}</p>
-                      <span className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                        <Calendar className="w-3 h-3" />
-                        {item.year}
-                      </span>
+                    <div style={{
+                      position: 'absolute', top: '16px', right: '16px',
+                      width: '36px', height: '36px', borderRadius: '50%',
+                      background: 'rgba(99, 102, 241, 0.8)',
+                      backdropFilter: 'blur(8px)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <ZoomIn size={16} color="white" />
                     </div>
-                    {item.description && (
-                      <p className="text-sm text-gray-500 mt-2 line-clamp-2">{item.description}</p>
-                    )}
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
               );
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Lightbox Modal – enhanced with scale-in animation */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
-          onClick={() => setLightbox(null)}
-          style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
-        >
-          <div
-            className="relative bg-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl animate-scale-in"
-            onClick={(e) => e.stopPropagation()}
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(3, 7, 18, 0.95)',
+              backdropFilter: 'blur(20px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '24px',
+            }}
+            onClick={() => setLightbox(null)}
           >
-            <button
-              onClick={() => setLightbox(null)}
-              className="absolute top-4 right-4 z-10 w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 hover:scale-110 transition-all duration-200"
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                position: 'relative', maxWidth: '1000px', width: '100%',
+                borderRadius: '20px', overflow: 'hidden',
+                border: '1px solid rgba(99, 102, 241, 0.2)',
+              }}
+              onClick={e => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="relative bg-gray-100">
               <img
                 src={lightbox.image}
                 alt={lightbox.title}
-                className="w-full max-h-[65vh] object-contain"
+                style={{ width: '100%', display: 'block', maxHeight: '75vh', objectFit: 'contain', background: '#0a1228' }}
               />
-            </div>
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-4">
+              <div style={{
+                padding: '20px 28px',
+                background: 'rgba(10, 18, 42, 0.95)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{lightbox.title}</h3>
-                  <div className="flex flex-wrap gap-3 mt-2">
-                    {lightbox.category && (
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${getCategoryStyle(lightbox.category).bg} text-white`}>
-                        <Tag className="w-3 h-3" />
-                        {lightbox.category}
-                      </span>
-                    )}
-                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                      <Calendar className="w-3 h-3" />
-                      {lightbox.year}
-                    </span>
+                  <div style={{ color: '#f1f5f9', fontWeight: 600 }}>{lightbox.title}</div>
+                  <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
+                    {lightbox.createdAt ? new Date(lightbox.createdAt).toLocaleDateString() : ''} · {lightbox.category}
                   </div>
                 </div>
+                <button
+                  onClick={() => setLightbox(null)}
+                  style={{
+                    width: '36px', height: '36px', borderRadius: '8px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#94a3b8', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <X size={18} />
+                </button>
               </div>
-              {lightbox.description && (
-                <p className="text-gray-600 mt-4 leading-relaxed">{lightbox.description}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Custom keyframes for fade-in and scale animations */}
-      <style jsx global>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .animate-scale-in {
-          animation: scaleIn 0.2s ease-out;
+      {/* Simple keyframes for spinner */}
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

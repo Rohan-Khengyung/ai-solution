@@ -382,7 +382,8 @@ const AdminLogin = () => {
         {/* Content overlaid on top of 3D scene */}
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-8 h-8 border-2 border-white flex items-center justify-center">
+            {/* Logo container  */}
+            <div className="w-8 h-8 border-2 border-white rounded flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <rect x="1" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
                 <rect x="9" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
@@ -429,7 +430,7 @@ const AdminLogin = () => {
         <div className="w-full max-w-md -mt-[70px]">
           {/* Mobile logo (visible on small screens) */}
           <div className="flex items-center gap-2 mb-10 lg:hidden">
-            <div className="w-7 h-7 border-2 border-gray-900 flex items-center justify-center">
+            <div className="w-7 h-7 border-2 border-gray-900 rounded flex items-center justify-center">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <rect x="0.5" y="0.5" width="5" height="5" stroke="#111827" strokeWidth="1" />
                 <rect x="6.5" y="0.5" width="5" height="5" stroke="#111827" strokeWidth="1" />

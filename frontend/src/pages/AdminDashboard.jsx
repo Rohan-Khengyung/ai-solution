@@ -269,12 +269,12 @@ const AdminDashboard = () => {
         <aside className="w-56 bg-gray-900 flex flex-col flex-shrink-0">
           <div className="px-5 py-5 border-b border-gray-700">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-gradient-to-br from-[#0055FF] to-indigo-600 flex items-center justify-center">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <rect x="0.5" y="0.5" width="5" height="5" fill="white" fillOpacity="0.9" />
-                  <rect x="6.5" y="0.5" width="5" height="5" fill="white" fillOpacity="0.4" />
-                  <rect x="0.5" y="6.5" width="5" height="5" fill="white" fillOpacity="0.4" />
-                  <rect x="6.5" y="6.5" width="5" height="5" fill="white" fillOpacity="0.15" />
+              <div className="w-7 h-7 border-2 border-white/90 flex items-center justify-center rounded-sm">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                  <rect x="1" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
+                  <rect x="9" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
+                  <rect x="1" y="9" width="6" height="6" stroke="#0055FF" strokeWidth="1.5" />
+                  <rect x="9" y="9" width="6" height="6" stroke="white" strokeWidth="1.5" />
                 </svg>
               </div>
               <div>
@@ -309,7 +309,7 @@ const AdminDashboard = () => {
         </aside>
       )}
 
-      {/* Main content */}
+      {/* Main content – unchanged */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-gray-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -327,7 +327,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* OVERVIEW */}
+          {/* All existing JSX for tabs – unchanged – same as original */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -419,10 +419,8 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ENQUIRIES TAB */}
           {activeTab === 'enquiries' && (
             <div>
-              {/* Header with stats */}
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Enquiries Management</h2>
                 <p className="text-sm text-gray-500 mt-1">
@@ -430,7 +428,6 @@ const AdminDashboard = () => {
                 </p>
               </div>
           
-              {/* Search, filter, and bulk actions bar */}
               <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
                 <div className="flex flex-wrap gap-3 items-center justify-between">
                   <div className="flex flex-wrap gap-3 flex-1">
@@ -455,7 +452,6 @@ const AdminDashboard = () => {
                     </select>
                   </div>
                   
-                  {/* Bulk actions appear when items selected */}
                   {selectedEnquiries.length > 0 && (
                     <div className="flex gap-2 items-center bg-blue-50 px-3 py-2 rounded-lg">
                       <span className="text-sm font-medium text-blue-700">{selectedEnquiries.length} selected</span>
@@ -482,7 +478,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
           
-              {/* Card grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {enquiries.map((enq) => (
                   <div
@@ -492,7 +487,6 @@ const AdminDashboard = () => {
                     }`}
                   >
                     <div className="p-5">
-                      {/* Header with checkbox and status */}
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-2">
                           <input
@@ -526,13 +520,11 @@ const AdminDashboard = () => {
                         </div>
                       </div>
           
-                      {/* Customer info */}
                       <div className="mb-3">
                         <h3 className="text-lg font-bold text-gray-900">{enq.name}</h3>
                         <p className="text-sm text-gray-600">{enq.jobTitle} · {enq.company}</p>
                       </div>
           
-                      {/* Contact details */}
                       <div className="space-y-2 text-sm text-gray-600 mb-4">
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4 text-gray-400" />
@@ -552,12 +544,10 @@ const AdminDashboard = () => {
                         </div>
                       </div>
           
-                      {/* Project details preview */}
                       <p className="text-gray-700 text-sm border-t pt-3 mt-2 italic">
                         "{enq.jobDetails.substring(0, 80)}{enq.jobDetails.length > 80 && '...'}"
                       </p>
           
-                      {/* Action buttons */}
                       <div className="mt-4 flex flex-wrap gap-2 justify-end">
                         {enq.status !== 'processed' && (
                           <button
@@ -596,7 +586,6 @@ const AdminDashboard = () => {
             </div>
           )}
           
-          {/* CONTACT DETAILS */}
           {activeTab === 'contact-details' && (
             <div>
               <div className="mb-6">
@@ -662,7 +651,6 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* REVIEWS */}
           {activeTab === 'reviews' && (
             <div>
               <div className="mb-6">
@@ -698,7 +686,6 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* BLOG */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6">
@@ -748,7 +735,6 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* GALLERY */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border p-5 mb-6">
@@ -775,7 +761,6 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* CONTACT INFO  */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl">
               <h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2>
