@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
-  Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive
+  Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive,
+  Clock, MapPin, Users, BarChart3, TrendingUp, Filter
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -11,6 +12,7 @@ import {
   deleteEnquiry,
   getAllReviews,
   approveReview,
+  rejectReview,
   deleteReview,
   createBlogPost,
   updateBlogPost,
@@ -21,15 +23,15 @@ import {
   getContactDetails,
   getGalleryItems,
   getAllBlogsAdmin,
+  getAllEventsAdmin,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  getEventRegistrations,
+  getAllRegistrations,
+  deleteRegistration,
 } from '../services/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-// Temporary helper for reject (replace with actual API call)
-const updateReviewStatus = async (id, status) => {
-  console.log(`Update review ${id} to ${status}`);
-  // TODO: implement actual API call: await axios.put(`/api/admin/reviews/${id}/status`, { status });
-  return Promise.resolve();
-};
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const AdminDashboard = () => {
   const { logout } = useAuth();
@@ -38,12 +40,15 @@ const AdminDashboard = () => {
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [selectedEnquiries, setSelectedEnquiries] = useState([]);
 
+  // Chart time range: 'day', 'month', 'year'
+  const [chartRange, setChartRange] = useState('month');
+
   // --- State ---
   const [enquiries, setEnquiries] = useState([]);
   const [enquiryFilter, setEnquiryFilter] = useState('');
   const [enquirySearch, setEnquirySearch] = useState('');
-  const [reviews, setReviews] = useState([]);
-  const [reviewFilter, setReviewFilter] = useState('all');
+  const [allReviews, setAllReviews] = useState([]);        
+  const [reviewFilter, setReviewFilter] = useState('all'); 
   const [blogPosts, setBlogPosts] = useState([]);
   const [editingBlog, setEditingBlog] = useState(null);
   const [blogForm, setBlogForm] = useState({
@@ -58,6 +63,15 @@ const AdminDashboard = () => {
     email: '', phone: '', address: '', hours: '',
   });
 
+  // === EVENT STATE ===
+  const [events, setEvents] = useState([]);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventForm, setEventForm] = useState({
+    title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true
+  });
+  const [selectedEventRegistrations, setSelectedEventRegistrations] = useState(null);
+  const [allRegistrations, setAllRegistrations] = useState([]);
+
   // --- Fetch functions ---
   const fetchEnquiries = async () => {
     try {
@@ -68,13 +82,14 @@ const AdminDashboard = () => {
       setEnquiries(res.data.data);
     } catch (err) { console.error(err); alert('Failed to load enquiries'); }
   };
-  const fetchReviews = async () => {
+
+  const fetchAllReviews = async () => {
     try {
-      const params = reviewFilter !== 'all' ? { status: reviewFilter } : {};
-      const res = await getAllReviews(params);
-      setReviews(res.data.data);
+      const res = await getAllReviews();
+      setAllReviews(res.data.data);
     } catch (err) { console.error(err); alert('Failed to load reviews'); }
   };
+
   const fetchBlogs = async () => {
     try {
       const res = await getAllBlogsAdmin();
@@ -94,15 +109,49 @@ const AdminDashboard = () => {
     } catch (err) { console.error(err); alert('Failed to load contact details'); }
   };
 
+  const fetchEvents = async () => {
+    try {
+      const res = await getAllEventsAdmin();
+      setEvents(res.data.data);
+    } catch (err) { console.error(err); alert('Failed to load events'); }
+  };
+  const fetchRegistrations = async (eventId) => {
+    try {
+      const res = await getEventRegistrations(eventId);
+      setSelectedEventRegistrations({ eventId, registrations: res.data.data });
+    } catch (err) { console.error(err); alert('Failed to load registrations'); }
+  };
+  const fetchAllRegistrations = async () => {
+    try {
+      const res = await getAllRegistrations();
+      setAllRegistrations(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteRegistration = async (registrationId, eventId, registrantName) => {
+    if (window.confirm(`Delete registration for ${registrantName}?`)) {
+      try {
+        await deleteRegistration(registrationId);
+        fetchRegistrations(eventId);
+        alert('Registration deleted successfully');
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete registration');
+      }
+    }
+  };
+
+  // Effects
   useEffect(() => {
     if (activeTab === 'enquiries' || activeTab === 'contact-details') fetchEnquiries();
-    else if (activeTab === 'reviews') fetchReviews();
+    else if (activeTab === 'reviews') fetchAllReviews();
     else if (activeTab === 'blog') fetchBlogs();
     else if (activeTab === 'gallery') fetchGallery();
+    else if (activeTab === 'events') fetchEvents();
     else if (activeTab === 'contact') fetchContact();
-  }, [activeTab, enquiryFilter, enquirySearch, reviewFilter]);
+  }, [activeTab, enquiryFilter, enquirySearch]);
 
-  // --- Enquiry handlers (including bulk actions)---
+  // --- Enquiry handlers ---
   const handleStatusChange = async (id, status) => {
     try { await updateEnquiryStatus(id, status); fetchEnquiries(); }
     catch (err) { alert('Failed to update status'); }
@@ -118,10 +167,6 @@ const AdminDashboard = () => {
     setSelectedEnquiries(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
-  };
-  const handleSelectAll = (checked) => {
-    if (checked) setSelectedEnquiries(enquiries.map(e => e._id));
-    else setSelectedEnquiries([]);
   };
   const handleBulkStatus = async (status) => {
     if (!selectedEnquiries.length) return;
@@ -144,18 +189,28 @@ const AdminDashboard = () => {
 
   // --- Review handlers ---
   const handleApproveReview = async (id) => {
-    try { await approveReview(id); fetchReviews(); }
-    catch (err) { alert('Failed to approve review'); }
+    try { 
+      await approveReview(id); 
+      await fetchAllReviews();
+    } catch (err) { alert('Failed to approve review'); }
   };
   const handleRejectReview = async (id) => {
     if (!window.confirm('Reject this review?')) return;
-    try { await updateReviewStatus(id, 'rejected'); fetchReviews(); }
-    catch (err) { alert('Failed to reject review'); }
+    try { 
+      await rejectReview(id);
+      await fetchAllReviews();
+      alert('Review rejected');
+    } catch (err) { 
+      console.error(err);
+      alert('Failed to reject review'); 
+    }
   };
   const handleDeleteReview = async (id) => {
     if (window.confirm('Delete this review permanently?')) {
-      try { await deleteReview(id); fetchReviews(); }
-      catch (err) { alert('Failed to delete review'); }
+      try { 
+        await deleteReview(id); 
+        await fetchAllReviews();
+      } catch (err) { alert('Failed to delete review'); }
     }
   };
 
@@ -217,6 +272,25 @@ const AdminDashboard = () => {
     } catch (err) { alert('Failed to update contact details'); }
   };
 
+  // === EVENT HANDLERS ===
+  const handleEventSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingEvent) await updateEvent(editingEvent._id, eventForm);
+      else await createEvent(eventForm);
+      alert(editingEvent ? 'Event updated' : 'Event created');
+      setEditingEvent(null);
+      setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true });
+      fetchEvents();
+    } catch (err) { alert('Failed to save event'); }
+  };
+  const handleDeleteEvent = async (id) => {
+    if (window.confirm('Delete event?')) {
+      await deleteEvent(id);
+      fetchEvents();
+    }
+  };
+
   // Reply via email
   const handleReplyEmail = (email, name, jobDetails) => {
     const subject = `Reply to your enquiry - AI Solutions`;
@@ -224,43 +298,122 @@ const AdminDashboard = () => {
     window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  // Analytics
-  const getMonthlyEnquiries = () => {
-    const monthMap = {};
-    enquiries.forEach(enq => {
-      const date = new Date(enq.createdAt);
-      const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
-      monthMap[monthYear] = (monthMap[monthYear] || 0) + 1;
-    });
-    return Object.entries(monthMap)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([month, count]) => ({ month, count }));
+  // --- Enhanced Analytics: Chart data aggregation by day, month, year ---
+  const getChartData = () => {
+    if (!enquiries.length) return [];
+
+    const now = new Date();
+    let groups = new Map();
+
+    if (chartRange === 'day') {
+      // Last 14 days (or all available days)
+      const days = 14;
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
+        groups.set(key, 0);
+      }
+      enquiries.forEach(enq => {
+        const date = new Date(enq.createdAt);
+        const key = date.toISOString().split('T')[0];
+        if (groups.has(key)) groups.set(key, groups.get(key) + 1);
+        else if (date >= new Date(now.getTime() - (days-1)*24*60*60*1000)) {
+          groups.set(key, (groups.get(key) || 0) + 1);
+        }
+      });
+      // Convert to array and sort by date
+      return Array.from(groups.entries())
+        .sort((a,b) => a[0].localeCompare(b[0]))
+        .map(([date, count]) => ({ label: date.slice(5), fullDate: date, count }));
+    } 
+    else if (chartRange === 'month') {
+      // Last 12 months
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        groups.set(key, 0);
+      }
+      enquiries.forEach(enq => {
+        const date = new Date(enq.createdAt);
+        const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+        if (groups.has(key)) groups.set(key, groups.get(key) + 1);
+      });
+      return Array.from(groups.entries())
+        .sort((a,b) => a[0].localeCompare(b[0]))
+        .map(([month, count]) => {
+          const [year, mon] = month.split('-');
+          const monthName = new Date(parseInt(year), parseInt(mon)-1).toLocaleString('default', { month: 'short' });
+          return { label: `${monthName} ${year}`, count };
+        });
+    } 
+    else { // year
+      // All years present, plus current year
+      const yearsSet = new Set();
+      enquiries.forEach(enq => {
+        const year = new Date(enq.createdAt).getFullYear();
+        yearsSet.add(year);
+      });
+      const currentYear = now.getFullYear();
+      if (!yearsSet.has(currentYear)) yearsSet.add(currentYear);
+      const years = Array.from(yearsSet).sort();
+      years.forEach(year => groups.set(year, 0));
+      enquiries.forEach(enq => {
+        const year = new Date(enq.createdAt).getFullYear();
+        groups.set(year, groups.get(year) + 1);
+      });
+      return Array.from(groups.entries())
+        .sort((a,b) => a[0] - b[0])
+        .map(([year, count]) => ({ label: year.toString(), count }));
+    }
   };
 
-  const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
+  const chartData = getChartData();
 
+  // Helper: custom tooltip for bar chart
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+          <p className="text-sm font-bold text-gray-900">{label}</p>
+          <p className="text-sm text-blue-600">
+            <span className="font-semibold">Enquiries:</span> {payload[0].value}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Analytics
   const newEnquiries = enquiries.filter(e => e.status === 'new').length;
-  const pendingReviews = reviews.filter(r => r.status === 'pending').length;
   const publishedPosts = blogPosts.filter(p => p.published).length;
+
+  const reviewCounts = {
+    all: allReviews.length,
+    pending: allReviews.filter(r => r.status === 'pending').length,
+    approved: allReviews.filter(r => r.status === 'approved').length,
+    rejected: allReviews.filter(r => r.status === 'rejected').length
+  };
+
+  const filteredReviews = allReviews.filter(review => {
+    if (reviewFilter === 'all') return true;
+    return review.status === reviewFilter;
+  });
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'enquiries', label: 'Enquiries', icon: Inbox, badge: newEnquiries },
     { id: 'contact-details', label: 'Contact Details', icon: Mail, badge: enquiries.length },
-    { id: 'reviews', label: 'Reviews', icon: Star, badge: pendingReviews },
+    { id: 'reviews', label: 'Reviews', icon: Star, badge: reviewCounts.pending },
     { id: 'blog', label: 'Blog', icon: BookOpen },
+    { id: 'events', label: 'Events', icon: Calendar },
     { id: 'gallery', label: 'Gallery', icon: Image },
     { id: 'contact', label: 'Contact Info', icon: Phone },
   ];
 
   const getBlogCategory = (post) => (post.tags && post.tags[0]) || 'Article';
-
-  const reviewCounts = {
-    all: reviews.length,
-    pending: reviews.filter(r => r.status === 'pending').length,
-    approved: reviews.filter(r => r.status === 'approved').length,
-    rejected: reviews.filter(r => r.status === 'rejected').length
-  };
+  const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -309,7 +462,7 @@ const AdminDashboard = () => {
         </aside>
       )}
 
-      {/* Main content – unchanged */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-gray-200 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -327,7 +480,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* All existing JSX for tabs – unchanged – same as original */}
+          {/* Overview Tab with Enhanced Chart */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -338,8 +491,8 @@ const AdminDashboard = () => {
                 </div>
                 <div className="bg-white border border-gray-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Pending Reviews</p>
-                  <div className="text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{pendingReviews}</div>
-                  <p className="text-xs text-gray-400 mt-1">{reviews.filter(r => r.status === 'approved').length} approved</p>
+                  <div className="text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{reviewCounts.pending}</div>
+                  <p className="text-xs text-gray-400 mt-1">{reviewCounts.approved} approved</p>
                 </div>
                 <div className="bg-white border border-gray-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Blog Posts</p>
@@ -353,20 +506,89 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-200 p-5 mb-8">
-                <h3 className="text-sm font-bold text-gray-900 mb-4">Enquiries per Month</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={getMonthlyEnquiries()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="count" fill="#0055FF" name="Number of Enquiries" />
+              {/* Enhanced Analytics Section */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-[#0055FF]" />
+                      Enquiries Analytics
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">Track enquiries over time</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                    <button
+                      onClick={() => setChartRange('day')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                        chartRange === 'day'
+                          ? 'bg-[#0055FF] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      onClick={() => setChartRange('month')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                        chartRange === 'month'
+                          ? 'bg-[#0055FF] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setChartRange('year')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                        chartRange === 'year'
+                          ? 'bg-[#0055FF] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      Yearly
+                    </button>
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0055FF" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.6} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis 
+                      dataKey="label" 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6' }} />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      formatter={() => <span className="text-sm text-gray-600">Number of Enquiries</span>}
+                    />
+                    <Bar dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill="url(#barGradient)" />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-                {getMonthlyEnquiries().length === 0 && (
-                  <p className="text-center text-gray-400 py-8">No data yet</p>
+                {chartData.length === 0 && (
+                  <div className="text-center text-gray-400 py-12">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No enquiry data available to display chart.</p>
+                    <p className="text-xs mt-1">Submit enquiries to see analytics.</p>
+                  </div>
                 )}
               </div>
 
@@ -396,7 +618,7 @@ const AdminDashboard = () => {
                     <button onClick={() => setActiveTab('reviews')} className="text-xs text-[#0055FF] font-medium hover:underline">View all</button>
                   </div>
                   <div className="divide-y divide-gray-100">
-                    {reviews.filter(r => r.status === 'pending').slice(0, 4).map((r) => (
+                    {allReviews.filter(r => r.status === 'pending').slice(0, 4).map((r) => (
                       <div key={r._id} className="px-5 py-3 flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-xs font-bold text-amber-700 flex-shrink-0">{r.name.charAt(0)}</div>
                         <div className="flex-1 min-w-0">
@@ -412,13 +634,14 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     ))}
-                    {reviews.filter(r => r.status === 'pending').length === 0 && <div className="px-5 py-8 text-center text-xs text-gray-400">No pending reviews</div>}
+                    {allReviews.filter(r => r.status === 'pending').length === 0 && <div className="px-5 py-8 text-center text-xs text-gray-400">No pending reviews</div>}
                   </div>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Enquiries Tab - unchanged */}
           {activeTab === 'enquiries' && (
             <div>
               <div className="mb-6">
@@ -586,6 +809,7 @@ const AdminDashboard = () => {
             </div>
           )}
           
+          {/* Contact Details Tab - unchanged */}
           {activeTab === 'contact-details' && (
             <div>
               <div className="mb-6">
@@ -651,41 +875,92 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* Reviews Tab */}
           {activeTab === 'reviews' && (
             <div>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Review Moderation</h2>
                 <div className="flex gap-4 mt-2 border-b">
                   {['all', 'pending', 'approved', 'rejected'].map(status => (
-                    <button key={status} onClick={() => setReviewFilter(status)} className={`px-4 py-2 text-sm font-medium transition-colors ${reviewFilter === status ? 'border-b-2 border-[#0055FF] text-[#0055FF]' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <button
+                      key={status}
+                      onClick={() => setReviewFilter(status)}
+                      className={`px-4 py-2 text-sm font-medium transition-colors ${
+                        reviewFilter === status
+                          ? 'border-b-2 border-[#0055FF] text-[#0055FF]'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
                       {status.toUpperCase()} ({reviewCounts[status]})
                     </button>
                   ))}
                 </div>
               </div>
+
               <div className="space-y-4">
-                {reviews.map(review => (
+                {filteredReviews.map(review => (
                   <div key={review._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
                     <div className="flex justify-between items-start flex-wrap gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap"><h3 className="font-bold text-gray-900">{review.name}</h3><span className="text-sm text-gray-500">· {review.company}</span><span className="text-xs text-gray-400 ml-2">{formatDate(review.date)}</span></div>
-                        <div className="flex items-center gap-1 my-2">{[...Array(5)].map((_, i) => <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />)}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-gray-900">{review.name}</h3>
+                          <span className="text-sm text-gray-500">· {review.company}</span>
+                          <span className="text-xs text-gray-400 ml-2">{formatDate(review.date)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 my-2">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                        </div>
                         <p className="text-gray-700 italic">"{review.comment}"</p>
-                        <div className="mt-3"><span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${review.status === 'approved' ? 'bg-green-100 text-green-800' : review.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{review.status.toUpperCase()}</span></div>
+                        <div className="mt-3">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                            review.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            review.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {review.status.toUpperCase()}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
-                        {review.status !== 'approved' && <button onClick={() => handleApproveReview(review._id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-emerald-700"><ThumbsUp className="w-3.5 h-3.5" /> Approve</button>}
-                        {review.status !== 'rejected' && <button onClick={() => handleRejectReview(review._id)} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-700"><ThumbsDown className="w-3.5 h-3.5" /> Reject</button>}
-                        <button onClick={() => handleDeleteReview(review._id)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                        {review.status !== 'approved' && (
+                          <button
+                            onClick={() => handleApproveReview(review._id)}
+                            className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-emerald-700"
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" /> Approve
+                          </button>
+                        )}
+                        {review.status !== 'rejected' && (
+                          <button
+                            onClick={() => handleRejectReview(review._id)}
+                            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-700"
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" /> Reject
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteReview(review._id)}
+                          className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
-                {reviews.length === 0 && <div className="text-center text-gray-400 py-12">No reviews in this category.</div>}
+                {filteredReviews.length === 0 && (
+                  <div className="text-center text-gray-400 py-12">No reviews in this category.</div>
+                )}
               </div>
             </div>
           )}
 
+          {/* Blog Tab - unchanged */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6">
@@ -735,6 +1010,92 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* Events Tab - unchanged */}
+          {activeTab === 'events' && (
+            <div>
+              <div className="mb-6 flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Event Management</h2>
+                  <p className="text-sm text-gray-500 mt-1">{events.length} total events</p>
+                </div>
+              </div>
+
+              <div id="event-form" className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
+                <h3 className="text-lg font-bold mb-4">{editingEvent ? 'Edit Event' : 'Create Event'}</h3>
+                <form onSubmit={handleEventSubmit} className="space-y-4">
+                  <input type="text" placeholder="Title *" value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} required className="w-full border rounded p-2" />
+                  <textarea placeholder="Description *" rows="3" value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} required className="w-full border rounded p-2" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="date" value={eventForm.date.split('T')[0]} onChange={e => setEventForm({...eventForm, date: e.target.value})} required className="border rounded p-2" />
+                    <input type="text" placeholder="Time (e.g., 10:00 – 18:00 BST)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required className="border rounded p-2" />
+                  </div>
+                  <input type="text" placeholder="Location *" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} required className="w-full border rounded p-2" />
+                  <input type="text" placeholder="Image URL" value={eventForm.image} onChange={e => setEventForm({...eventForm, image: e.target.value})} className="w-full border rounded p-2" />
+                  <input type="number" placeholder="Capacity *" min="1" value={eventForm.capacity} onChange={e => setEventForm({...eventForm, capacity: parseInt(e.target.value)})} required className="w-full border rounded p-2" />
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={eventForm.isActive} onChange={e => setEventForm({...eventForm, isActive: e.target.checked})} /> Active (visible on website)</label>
+                  <div className="flex gap-2">
+                    <button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingEvent ? 'Update' : 'Create'}</button>
+                    {editingEvent && <button type="button" onClick={() => { setEditingEvent(null); setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true }); }} className="border px-4 py-2 rounded">Cancel</button>}
+                  </div>
+                </form>
+              </div>
+
+              <div className="space-y-6">
+                {events.map(event => (
+                  <div key={event._id} className="bg-white border border-gray-200 rounded-lg p-5">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
+                        <p className="text-gray-600 text-sm mt-1">{event.description}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm text-gray-500">
+                          <span className="flex items-center gap-1"><Calendar size={14} />{new Date(event.date).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-1"><Clock size={14} />{event.time}</span>
+                          <span className="flex items-center gap-1"><MapPin size={14} />{event.location}</span>
+                          <span className="flex items-center gap-1"><Users size={14} />{event.registrations}/{event.capacity}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingEvent(event); setEventForm({ ...event, date: event.date.split('T')[0] }); }} className="border border-gray-300 px-3 py-1 rounded text-sm">Edit</button>
+                        <button onClick={() => handleDeleteEvent(event._id)} className="border border-red-200 text-red-600 px-3 py-1 rounded text-sm">Delete</button>
+                        <button onClick={() => fetchRegistrations(event._id)} className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm">View Registrations</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {selectedEventRegistrations && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto">
+                    <div className="p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold">Registrations</h3>
+                        <button onClick={() => setSelectedEventRegistrations(null)}><X size={20} /></button>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100">
+                          <tr><th className="p-2 text-left">Name</th><th>Email</th><th>Phone</th><th>Date</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                          {selectedEventRegistrations.registrations.map(reg => (
+                            <tr key={reg._id} className="border-t">
+                              <td className="p-2">{reg.name}</td><td className="p-2">{reg.email}</td><td className="p-2">{reg.phone}</td>
+                              <td className="p-2">{new Date(reg.createdAt).toLocaleDateString()}</td>
+                              <td className="p-2">
+                                <button onClick={() => handleDeleteRegistration(reg._id, selectedEventRegistrations.eventId, reg.name)} className="text-red-600 hover:text-red-800 transition"><Trash2 size={16} /></button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Gallery Tab - unchanged */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border p-5 mb-6">
@@ -761,6 +1122,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* Contact Info Tab - unchanged */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl">
               <h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2>

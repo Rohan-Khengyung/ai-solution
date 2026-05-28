@@ -5,6 +5,7 @@ const { getApprovedReviews, submitReview } = require('../controllers/reviewContr
 const { getPublishedPosts, getPostBySlug } = require('../controllers/blogController');
 const { getGalleryItems } = require('../controllers/galleryController');
 const { getContactDetails } = require('../controllers/contactController');
+const { getActiveEvents, registerForEvent } = require('../controllers/eventController');
 const { validate, enquiryValidation, reviewValidation } = require('../middleware/validation');
 
 // Enquiries
@@ -23,5 +24,9 @@ router.get('/gallery', getGalleryItems);
 
 // Contact
 router.get('/contact', getContactDetails);
+
+// Events (public)
+router.get('/events', getActiveEvents);
+router.post('/events/register', registerForEvent);
 
 module.exports = router;

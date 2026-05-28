@@ -49,6 +49,23 @@ const approveReview = async (req, res) => {
   }
 };
 
+// ✅ Admin: Reject review
+const rejectReview = async (req, res) => {
+  try {
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { status: 'rejected' },
+      { new: true, runValidators: true }
+    );
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+    res.json({ success: true, data: review });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Admin: Delete review
 const deleteReview = async (req, res) => {
   try {
@@ -64,5 +81,6 @@ module.exports = {
   submitReview,
   getAllReviews,
   approveReview,
+  rejectReview,   
   deleteReview
 };

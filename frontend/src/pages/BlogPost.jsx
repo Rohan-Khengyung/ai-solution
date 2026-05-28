@@ -97,9 +97,9 @@ const BlogPost = () => {
               <button className="p-2 rounded-full hover:bg-white/10 transition"><Share2 size={20} className="text-slate-400" /></button>
             </div>
 
-            {/* Content - HTML support */}
+            {/* Content - HTML support with explicit white text */}
             <div
-              className="prose prose-invert prose-lg max-w-none [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:text-xl [&_p]:text-slate-300 [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1 [&_strong]:text-white [&_a]:text-indigo-400 [&_a]:underline"
+              className="prose prose-invert prose-lg max-w-none text-white [&_p]:text-white [&_li]:text-white [&_span]:text-white [&_div]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-white [&_strong]:text-white [&_em]:text-white [&_a]:text-indigo-400 [&_a]:hover:text-indigo-300 [&_ul]:text-white [&_ol]:text-white"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
 
