@@ -1,6 +1,18 @@
-// backend/controllers/blogController.js
 const BlogPost = require('../models/BlogPost');
 const slugify = require('slugify');
+
+// Helper function to generate unique slug
+const generateUniqueSlug = async (title, excludeId = null) => {
+  let baseSlug = slugify(title, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
+  let slug = baseSlug;
+  let counter = 1;
+  while (true) {
+    const existing = await BlogPost.findOne({ slug, _id: { $ne: excludeId } });
+    if (!existing) break;
+    slug = `${baseSlug}-${counter++}`;
+  }
+  return slug;
+};
 
 // Public: Get published blog posts
 const getPublishedPosts = async (req, res) => {
@@ -41,19 +53,26 @@ const getPostBySlug = async (req, res) => {
 const createPost = async (req, res) => {
   try {
     const { title, content, excerpt, image, author, tags, published } = req.body;
-    const slug = slugify(title, { lower: true, strict: true });
+
+    // Validate required fields
+    if (!title || !content || !excerpt) {
+      return res.status(400).json({ message: 'Title, content, and excerpt are required' });
+    }
+
+    const slug = await generateUniqueSlug(title);
     const post = await BlogPost.create({
       title,
       slug,
       content,
       excerpt,
-      image,
+      image: image || 'https://via.placeholder.com/800x400?text=AI+Solutions',
       author: author || 'AI Solutions Team',
       tags: tags || [],
       published: published !== undefined ? published : true
     });
     res.status(201).json({ success: true, data: post });
   } catch (error) {
+    console.error(error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -61,12 +80,16 @@ const createPost = async (req, res) => {
 // Admin: Update post
 const updatePost = async (req, res) => {
   try {
-    const { title } = req.body;
-    if (title) req.body.slug = slugify(title, { lower: true, strict: true });
-    const post = await BlogPost.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const { title, ...updateData } = req.body;
+    if (title) {
+      updateData.slug = await generateUniqueSlug(title, req.params.id);
+      updateData.title = title;
+    }
+    const post = await BlogPost.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
     if (!post) return res.status(404).json({ message: 'Post not found' });
     res.json({ success: true, data: post });
   } catch (error) {
+    console.error(error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -82,7 +105,7 @@ const deletePost = async (req, res) => {
   }
 };
 
-// Admin: Get all posts (including unpublished) – NEW
+// Admin: Get all posts (including unpublished)
 const getAllBlogsAdmin = async (req, res) => {
   try {
     const posts = await BlogPost.find().sort({ createdAt: -1 });
@@ -98,5 +121,5 @@ module.exports = {
   createPost,
   updatePost,
   deletePost,
-  getAllBlogsAdmin,  
+  getAllBlogsAdmin,
 };

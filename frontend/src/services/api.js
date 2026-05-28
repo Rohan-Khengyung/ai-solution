@@ -1,5 +1,4 @@
 import axios from 'axios';
-export const getAllBlogsAdmin = () => API.get('/admin/blog');
 
 const API = axios.create({
   baseURL: 'http://localhost:5000/api',
@@ -34,6 +33,7 @@ export const getAllReviews = (status) => API.get('/admin/reviews', { params: { s
 export const approveReview = (id) => API.put(`/admin/reviews/${id}/approve`);
 export const deleteReview = (id) => API.delete(`/admin/reviews/${id}`);
 
+export const getAllBlogsAdmin = () => API.get('/admin/blog');  // moved after API definition
 export const createBlogPost = (data) => API.post('/admin/blog', data);
 export const updateBlogPost = (id, data) => API.put(`/admin/blog/${id}`, data);
 export const deleteBlogPost = (id) => API.delete(`/admin/blog/${id}`);

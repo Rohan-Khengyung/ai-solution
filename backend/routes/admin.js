@@ -4,10 +4,9 @@ const { protect } = require('../middleware/auth');
 const { loginAdmin, getMe } = require('../controllers/adminAuthController');
 const { getEnquiries, updateEnquiryStatus, deleteEnquiry } = require('../controllers/enquiryController');
 const { getAllReviews, approveReview, deleteReview } = require('../controllers/reviewController');
-const { createPost, updatePost, deletePost } = require('../controllers/blogController');
+const { createPost, updatePost, deletePost, getAllBlogsAdmin } = require('../controllers/blogController');
 const { addGalleryItem, deleteGalleryItem } = require('../controllers/galleryController');
 const { updateContactDetails } = require('../controllers/contactController');
-const { getAllBlogsAdmin } = require('../controllers/blogController');
 
 // Auth
 router.post('/login', loginAdmin);
@@ -27,7 +26,7 @@ router.delete('/reviews/:id', protect, deleteReview);
 router.post('/blog', protect, createPost);
 router.put('/blog/:id', protect, updatePost);
 router.delete('/blog/:id', protect, deletePost);
-router.get('/blog', protect, getAllBlogsAdmin);
+router.get('/blog', protect, getAllBlogsAdmin);   // ← now matches export
 
 // Gallery
 router.post('/gallery', protect, addGalleryItem);

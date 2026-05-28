@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Calendar, User, Tag, ArrowRight, BookOpen, ChevronRight } from 'lucide-react';
 import { getBlogPosts } from '../services/api';
-import { MOCK_POSTS } from '../data/mockBlogData';
 
-// Derive categories from mock and API posts
-const DEFAULT_CATEGORIES = ['All', 'AI Insights', 'Case Studies', 'Best Practices', 'Company News'];
+const CATEGORIES = ['All', 'AI Insights', 'Case Studies', 'Best Practices', 'Company News'];
 
 const CATEGORY_COLORS = {
   'AI Insights': '#6366f1',
@@ -24,15 +22,13 @@ const Blog = () => {
     const fetchPosts = async () => {
       try {
         const res = await getBlogPosts(1);
-        if (res.data && res.data.data && res.data.data.length > 0) {
+        if (res.data.success && res.data.data.length) {
           setPosts(res.data.data);
         } else {
-          // No data from API, use mock
-          setPosts(MOCK_POSTS);
+          setPosts([]);
         }
       } catch (err) {
-        console.error('API error, using mock data:', err);
-        setPosts(MOCK_POSTS);
+        console.error('Failed to load blog posts:', err);
       } finally {
         setLoading(false);
       }
@@ -40,250 +36,155 @@ const Blog = () => {
     fetchPosts();
   }, []);
 
-  // Extract unique categories from posts (fallback to DEFAULT_CATEGORIES)
-  const availableCategories = posts.length
-    ? ['All', ...new Set(posts.map(p => p.category || (p.tags && p.tags[0]) || 'Uncategorized').filter(Boolean))]
-    : DEFAULT_CATEGORIES;
-
   const filtered = activeCategory === 'All'
     ? posts
-    : posts.filter(p => (p.category || (p.tags && p.tags[0])) === activeCategory);
+    : posts.filter(p => p.category === activeCategory);
 
-  const [featured, ...rest] = filtered;
+  const featured = filtered[0];
+  const remaining = filtered.slice(1);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#030712]">
-        <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div style={{ background: '#030712', paddingTop: '80px' }}>
-      {/* Hero Section (same as before) */}
-      <section style={{
-        padding: '80px 24px 60px',
-        background: 'linear-gradient(180deg, #060f24 0%, #030712 100%)',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
-          width: '600px', height: '400px',
-          background: 'radial-gradient(circle, rgba(6, 182, 212, 0.06) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
+    <div className="bg-[#030712] pt-20">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden text-center py-20 px-6 bg-gradient-to-b from-[#060f24] to-[#030712]">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[radial-gradient(circle,rgba(6,182,212,0.06)_0%,transparent_70%)] pointer-events-none" />
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          style={{ position: 'relative' }}
+          className="relative"
         >
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '8px',
-            padding: '6px 16px', borderRadius: '999px',
-            background: 'rgba(6, 182, 212, 0.08)',
-            border: '1px solid rgba(6, 182, 212, 0.2)',
-            marginBottom: '24px',
-          }}>
-            <BookOpen size={14} color="#22d3ee" />
-            <span style={{ color: '#22d3ee', fontSize: '0.85rem', fontWeight: 500 }}>Blog & Insights</span>
+          <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-4 py-1.5 mb-6">
+            <BookOpen size={14} className="text-cyan-400" />
+            <span className="text-cyan-400 text-sm font-medium">Blog & Insights</span>
           </div>
-          <h1 style={{ 
-            color: '#f1f5f9', 
-            marginBottom: '20px',
-            fontSize: 'clamp(3rem, 8vw, 5.5rem)',  // Much larger, responsive
-            fontWeight: 'bold',
-            lineHeight: 1.2,
-            letterSpacing: '-0.02em' }}>
+          <h1 className="text-4xl md:text-6xl font-bold text-slate-100 mb-5">
             Latest from{' '}
-            <span style={{
-              background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              AI-Solutions
+            <span className="bg-gradient-to-r from-indigo-500 to-cyan-400 bg-clip-text text-transparent">
+              AI Solutions
             </span>
           </h1>
-          <p style={{ color: '#64748b', fontSize: '1.1rem', maxWidth: '560px', margin: '0 auto', lineHeight: 1.7 }}>
-            Expert insights, case studies, and thought leadership from our team of AI engineers and strategists.
+          <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+            Expert insights, case studies, and thought leadership from our team of AI engineers.
           </p>
         </motion.div>
       </section>
 
       {/* Category Filter */}
-      <section style={{ padding: '32px 24px', borderBottom: '1px solid rgba(99, 102, 241, 0.08)' }}>
-        <div style={{
-          maxWidth: '1280px', margin: '0 auto',
-          display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center',
-        }}>
-          {availableCategories.map(cat => (
+      <div className="border-b border-indigo-500/10">
+        <div className="container mx-auto px-4 py-8 flex flex-wrap justify-center gap-3">
+          {CATEGORIES.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              style={{
-                padding: '8px 20px', borderRadius: '999px', cursor: 'pointer',
-                fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.2s ease',
-                background: activeCategory === cat ? 'linear-gradient(135deg, #6366f1, #06b6d4)' : 'rgba(255,255,255,0.04)',
-                border: activeCategory === cat ? 'none' : '1px solid rgba(99, 102, 241, 0.2)',
-                color: activeCategory === cat ? 'white' : '#94a3b8',
-              }}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                activeCategory === cat
+                  ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-lg'
+                  : 'bg-white/5 border border-indigo-500/20 text-slate-300 hover:bg-white/10'
+              }`}
             >
               {cat}
             </button>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* Blog Posts Grid */}
-      <section style={{ padding: '60px 24px 120px' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px', color: '#475569' }}>
-              No articles in this category yet.
-            </div>
-          ) : (
-            <>
-              {/* Featured Post */}
-              {featured && (
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7 }}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-                    gap: '0',
-                    borderRadius: '20px',
-                    overflow: 'hidden',
-                    border: '1px solid rgba(99, 102, 241, 0.15)',
-                    marginBottom: '48px',
-                    background: 'rgba(10, 18, 42, 0.7)',
-                    backdropFilter: 'blur(20px)',
-                  }}
-                >
-                  <div style={{ position: 'relative' }}>
-                    <img
-                      src={featured.image}
-                      alt={featured.title}
-                      style={{ width: '100%', height: '320px', objectFit: 'cover', display: 'block' }}
-                    />
-                    <div style={{
-                      position: 'absolute', inset: 0,
-                      background: 'linear-gradient(270deg, rgba(3, 7, 18, 0.6) 0%, transparent 100%)',
-                    }} />
-                    <span style={{
-                      position: 'absolute', top: '20px', left: '20px',
-                      padding: '4px 12px', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 600,
+      {/* Blog Posts */}
+      <section className="container mx-auto px-4 py-16 pb-32">
+        {filtered.length === 0 ? (
+          <div className="text-center py-20 text-slate-500">No articles in this category yet.</div>
+        ) : (
+          <>
+            {/* Featured Post */}
+            {featured && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7 }}
+                className="grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-indigo-500/20 mb-12 bg-white/5 backdrop-blur-lg"
+              >
+                <div className="relative">
+                  <img src={featured.image} alt={featured.title} className="w-full h-80 object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#030712]/60 to-transparent" />
+                  <span
+                    className="absolute top-5 left-5 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm"
+                    style={{
                       background: `${CATEGORY_COLORS[featured.category] || '#6366f1'}20`,
                       border: `1px solid ${CATEGORY_COLORS[featured.category] || '#6366f1'}40`,
                       color: CATEGORY_COLORS[featured.category] || '#a5b4fc',
-                    }}>
-                      {featured.category || (featured.tags && featured.tags[0]) || 'Article'}
-                    </span>
-                  </div>
-                  <div style={{ padding: '40px' }}>
-                    <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.83rem' }}>
-                        <Calendar size={14} /> {new Date(featured.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.83rem' }}>
-                        <User size={14} /> {featured.author || 'AI Solutions Team'}
-                      </span>
-                    </div>
-                    <h2 style={{ color: '#f1f5f9', marginBottom: '16px' }}>{featured.title}</h2>
-                    <p style={{ color: '#64748b', lineHeight: 1.7, marginBottom: '24px', fontSize: '0.95rem' }}>
-                      {featured.excerpt}
-                    </p>
-                    <Link
-                      to={`/blog/${featured.slug}`}
-                      style={{
-                        padding: '12px 24px', borderRadius: '10px', cursor: 'pointer',
-                        color: 'white', fontWeight: 600, fontSize: '0.9rem',
-                        background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
-                        border: 'none',
-                        display: 'inline-flex', alignItems: 'center', gap: '8px',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      Read Full Article <ArrowRight size={16} />
-                    </Link>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Grid of remaining posts */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                gap: '24px',
-              }}>
-                {rest.map((post, i) => (
-                  <motion.article
-                    key={post._id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: i * 0.08 }}
-                    style={{
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      background: 'rgba(10, 18, 42, 0.7)',
-                      border: '1px solid rgba(99, 102, 241, 0.12)',
-                      backdropFilter: 'blur(20px)',
-                      transition: 'all 0.3s ease',
                     }}
-                    whileHover={{ y: -4, borderColor: 'rgba(99, 102, 241, 0.3)' }}
                   >
-                    <Link to={`/blog/${post.slug}`} style={{ textDecoration: 'none', display: 'block' }}>
-                      <div style={{ position: 'relative' }}>
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          style={{ width: '100%', height: '200px', objectFit: 'cover', display: 'block' }}
-                        />
-                        <span style={{
-                          position: 'absolute', top: '16px', left: '16px',
-                          padding: '4px 12px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600,
+                    {featured.category || 'AI Insights'}
+                  </span>
+                </div>
+                <div className="p-8 md:p-10">
+                  <div className="flex flex-wrap gap-4 text-sm text-slate-400 mb-4">
+                    <span className="flex items-center gap-1"><Calendar size={14} />{new Date(featured.createdAt).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1"><User size={14} />{featured.author}</span>
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-slate-100 mb-4">{featured.title}</h2>
+                  <p className="text-slate-400 leading-relaxed mb-6">{featured.excerpt}</p>
+                  <Link
+                    to={`/blog/${featured.slug}`}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:gap-3 transition-all"
+                  >
+                    Read Full Article <ArrowRight size={16} />
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Grid Posts */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {remaining.map((post, idx) => (
+                <motion.article
+                  key={post._id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.08 }}
+                  className="group rounded-xl overflow-hidden bg-white/5 backdrop-blur-lg border border-indigo-500/10 hover:border-indigo-500/30 transition-all hover:-translate-y-1"
+                >
+                  <Link to={`/blog/${post.slug}`} className="block">
+                    <div className="relative">
+                      <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
+                      <span
+                        className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm flex items-center gap-1"
+                        style={{
                           background: `${CATEGORY_COLORS[post.category] || '#6366f1'}25`,
                           border: `1px solid ${CATEGORY_COLORS[post.category] || '#6366f1'}40`,
                           color: CATEGORY_COLORS[post.category] || '#a5b4fc',
-                          backdropFilter: 'blur(8px)',
-                        }}>
-                          <Tag size={11} style={{ display: 'inline', marginRight: '4px' }} />
-                          {post.category || (post.tags && post.tags[0]) || 'Article'}
-                        </span>
+                        }}
+                      >
+                        <Tag size={11} /> {post.category || 'AI Insights'}
+                      </span>
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                        <span className="flex items-center gap-1"><Calendar size={12} />{new Date(post.createdAt).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1"><User size={12} />{post.author.split(' ')[0]}</span>
                       </div>
-                      <div style={{ padding: '24px' }}>
-                        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569', fontSize: '0.78rem' }}>
-                            <Calendar size={12} />
-                            {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569', fontSize: '0.78rem' }}>
-                            <User size={12} /> {post.author?.split(' ')[0] || 'AI'}
-                          </span>
-                        </div>
-                        <h3 style={{ color: '#f1f5f9', marginBottom: '12px' }}>{post.title}</h3>
-                        <p style={{ color: '#64748b', lineHeight: 1.6, marginBottom: '20px', fontSize: '0.875rem' }}>
-                          {post.excerpt}
-                        </p>
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: '6px',
-                          color: '#6366f1', fontSize: '0.875rem', fontWeight: 600,
-                        }}>
-                          Read More <ChevronRight size={16} />
-                        </div>
+                      <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-cyan-400 transition">{post.title}</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed mb-3">{post.excerpt.substring(0, 100)}...</p>
+                      <div className="flex items-center gap-1 text-indigo-400 text-sm font-medium group-hover:gap-2 transition-all">
+                        Read More <ChevronRight size={14} />
                       </div>
-                    </Link>
-                  </motion.article>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+                    </div>
+                  </Link>
+                </motion.article>
+              ))}
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
