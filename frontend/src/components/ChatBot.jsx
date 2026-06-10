@@ -1,146 +1,299 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { MessageCircle, X, Send, Bot, Minimize2 } from 'lucide-react';
 
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [messages, setMessages] = useState([
-    { text: "Hello! I'm your AI assistant. How can I help you today?", sender: 'bot' }
+    {
+      id: 0,
+      from: 'bot',
+      text: "Hi! 👋 I'm Aria, your AI Solutions assistant. How can I help you today? Ask me about our services, pricing, events, or anything else!",
+      timestamp: new Date()
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [unread, setUnread] = useState(1);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const [sessionId, setSessionId] = useState(null);
+
+  // Quick replies (predefined user messages)
+  const QUICK_REPLIES = ['Our services', 'Book a demo', 'Pricing info', 'Contact us'];
+
+  // Generate or retrieve session ID from localStorage
+  useEffect(() => {
+    let storedSession = localStorage.getItem('chatSessionId');
+    if (!storedSession) {
+      storedSession = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('chatSessionId', storedSession);
+    }
+    setSessionId(storedSession);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (isOpen && !minimized) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen, minimized]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  // Focus input when chat opens
+  useEffect(() => {
+    if (isOpen && !minimized) {
+      setTimeout(() => inputRef.current?.focus(), 200);
+      setUnread(0);
+    }
+  }, [isOpen, minimized]);
 
-    const userMessage = input.trim();
-    setMessages(prev => [...prev, { text: userMessage, sender: 'user' }]);
+  // Store conversation turn (user message + bot response)
+  const storeConversationTurn = async (userMsg, botMsg) => {
+    if (!sessionId) return;
+    try {
+      await axios.post('http://localhost:5000/api/chat/store', {
+        sessionId,
+        userMessage: userMsg,
+        botResponse: botMsg,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Failed to store chat history:', err);
+    }
+  };
+
+  // Send message to backend and handle response
+  const sendMessage = async (text) => {
+    if (!text.trim() || isLoading) return;
+
+    const userMessage = text.trim();
+    const userMsgObj = {
+      id: Date.now(),
+      from: 'user',
+      text: userMessage,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMsgObj]);
     setInput('');
     setIsLoading(true);
+    setIsTyping(true);
 
     try {
       const response = await axios.post('http://localhost:5000/api/chat', {
         message: userMessage
       });
 
+      let botReply = "I'm having trouble connecting right now. Please try again in a moment.";
       if (response.data.success) {
-        setMessages(prev => [...prev, { 
-          text: response.data.reply, 
-          sender: 'bot' 
-        }]);
+        botReply = response.data.reply;
       } else {
         throw new Error(response.data.message || 'Failed to get response');
       }
+
+      // Simulate realistic typing delay
+      setTimeout(async () => {
+        const botMsgObj = {
+          id: Date.now() + 1,
+          from: 'bot',
+          text: botReply,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, botMsgObj]);
+        setIsTyping(false);
+        await storeConversationTurn(userMessage, botReply);
+        if (!isOpen) setUnread(prev => prev + 1);
+      }, 700 + Math.random() * 500);
+
     } catch (error) {
       console.error('Chat error:', error);
-      
+
       let errorMessage = "I'm having trouble connecting right now. Please try again in a moment.";
-      
+
       if (error.response?.status === 429) {
         errorMessage = "Our AI assistant is a bit busy right now. Please wait a moment before trying again.";
       } else if (error.response?.status === 401) {
         errorMessage = "Our AI service is temporarily unavailable. Please contact us directly using the contact form.";
       }
-      
-      setMessages(prev => [...prev, { 
-        text: errorMessage, 
-        sender: 'bot' 
-      }]);
+
+      setTimeout(async () => {
+        const errorMsgObj = {
+          id: Date.now() + 1,
+          from: 'bot',
+          text: errorMessage,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMsgObj]);
+        setIsTyping(false);
+        await storeConversationTurn(userMessage, errorMessage);
+        if (!isOpen) setUnread(prev => prev + 1);
+      }, 500);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  const handleQuickReply = (replyText) => {
+    sendMessage(replyText);
+  };
+
+  // Format message text: supports **bold** and line breaks
+  const formatText = (text) => {
+    return text.split('\n').map((line, i) => {
+      const parts = line.split(/\*\*(.*?)\*\*/g);
+      return (
+        <span key={i}>
+          {parts.map((part, j) =>
+            j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+          )}
+          {i < text.split('\n').length - 1 && <br />}
+        </span>
+      );
+    });
   };
 
   return (
-    <>
-      {/* Chat Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40"
-      >
-        {isOpen ? (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-        )}
-      </button>
-
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-white rounded-lg shadow-2xl z-40 flex flex-col border">
+        <div
+          className={`bg-white border border-gray-200 shadow-2xl w-[360px] flex flex-col overflow-hidden transition-all duration-300 ${
+            minimized ? 'h-14' : 'h-[520px]'
+          }`}
+          style={{ borderRadius: '16px' }}
+        >
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
-            <h3 className="font-semibold">Aria</h3>
-            <p className="text-xs opacity-90">AI Solutions Assistant · Online</p> { /* Powered by Groq Llama 3.1 */ }
-          </div>
-          
-          {/* Messages Area */}
-          <div className="h-96 overflow-y-auto p-4 space-y-3 bg-gray-50">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-3 rounded-lg ${
-                  msg.sender === 'user' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-800 shadow-sm border'
-                }`}>
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-white text-gray-800 p-3 rounded-lg shadow-sm border">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-          
-          {/* Input Area */}
-          <div className="p-4 border-t bg-white">
-            <div className="flex space-x-2">
-              <textarea
-                rows="1"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Type your message..."
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                disabled={isLoading}
-              />
+          <div className="bg-gradient-to-r from-[#0055FF] to-indigo-600 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-sm leading-none">Aria</p>
+              <p className="text-blue-200 text-xs mt-0.5">AI Solutions Assistant · Online</p>
+            </div>
+            <div className="flex items-center gap-1">
               <button
-                onClick={sendMessage}
-                disabled={isLoading || !input.trim()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setMinimized(!minimized)}
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
               >
-                Send
+                <Minimize2 className="w-3.5 h-3.5 text-white" />
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="w-3.5 h-3.5 text-white" />
               </button>
             </div>
           </div>
+
+          {/* Minimized state only shows header */}
+          {!minimized && (
+            <>
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
+                {messages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {msg.from === 'bot' && (
+                      <div className="w-7 h-7 bg-gradient-to-br from-[#0055FF] to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
+                        <Bot className="w-3.5 h-3.5 text-white" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[75%] px-3.5 py-2.5 text-sm leading-relaxed ${
+                        msg.from === 'user'
+                          ? 'bg-[#0055FF] text-white rounded-t-2xl rounded-bl-2xl'
+                          : 'bg-white border border-gray-200 text-gray-700 rounded-t-2xl rounded-br-2xl shadow-sm'
+                      }`}
+                    >
+                      {formatText(msg.text)}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Typing Indicator */}
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="w-7 h-7 bg-gradient-to-br from-[#0055FF] to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
+                      <Bot className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div className="bg-white border border-gray-200 px-4 py-3 rounded-t-2xl rounded-br-2xl shadow-sm">
+                      <div className="flex gap-1 items-center h-4">
+                        {[0, 1, 2].map((i) => (
+                          <span
+                            key={i}
+                            className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: `${i * 0.15}s` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Quick Replies (only show if few messages) */}
+              {messages.length <= 2 && (
+                <div className="px-4 py-2 flex gap-2 flex-wrap border-t border-gray-100 bg-white">
+                  {QUICK_REPLIES.map((qr) => (
+                    <button
+                      key={qr}
+                      onClick={() => handleQuickReply(qr)}
+                      className="text-xs font-medium px-3 py-1.5 border border-[#0055FF] text-[#0055FF] rounded-full hover:bg-[#0055FF] hover:text-white transition-colors"
+                    >
+                      {qr}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Input Area */}
+              <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-gray-100 bg-white flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 text-sm text-gray-900 placeholder-gray-400 focus:outline-none py-1"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className="w-8 h-8 bg-[#0055FF] disabled:bg-gray-200 flex items-center justify-center rounded-full transition-colors flex-shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5 text-white" />
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
-    </>
+
+      {/* Toggle Button (with unread badge) */}
+      <button
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setMinimized(false);
+        }}
+        className="w-14 h-14 bg-gradient-to-br from-[#0055FF] to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-200 relative"
+        style={{ borderRadius: '50%' }}
+      >
+        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+        {!isOpen && unread > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            {unread}
+          </span>
+        )}
+      </button>
+    </div>
   );
 };
 

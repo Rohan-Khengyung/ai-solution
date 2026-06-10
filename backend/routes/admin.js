@@ -9,6 +9,8 @@ const { addGalleryItem, deleteGalleryItem } = require('../controllers/galleryCon
 const { updateContactDetails } = require('../controllers/contactController');
 const { deleteRegistration } = require('../controllers/eventRegistrationController');
 const eventController = require('../controllers/eventController');
+const { getChatHistories } = require('../controllers/chatController');
+
 
 // Auth
 router.post('/login', loginAdmin);
@@ -48,5 +50,8 @@ router.get('/registrations', protect, eventController.getAllRegistrations);
 
 // Registrations
 router.delete('/registrations/:id', protect, deleteRegistration);
+
+// Chat histories
+router.get('/chat-histories', protect, getChatHistories)
 
 module.exports = router;

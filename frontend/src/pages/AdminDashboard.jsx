@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
   Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive,
-  Clock, MapPin, Users, BarChart3, TrendingUp, Filter
+  Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -30,6 +30,7 @@ import {
   getEventRegistrations,
   getAllRegistrations,
   deleteRegistration,
+  getChatHistories,
 } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -43,12 +44,12 @@ const AdminDashboard = () => {
   // Chart time range: 'day', 'month', 'year'
   const [chartRange, setChartRange] = useState('month');
 
-  // --- State ---
+  // --- Data State ---
   const [enquiries, setEnquiries] = useState([]);
   const [enquiryFilter, setEnquiryFilter] = useState('');
   const [enquirySearch, setEnquirySearch] = useState('');
-  const [allReviews, setAllReviews] = useState([]);        
-  const [reviewFilter, setReviewFilter] = useState('all'); 
+  const [allReviews, setAllReviews] = useState([]);
+  const [reviewFilter, setReviewFilter] = useState('all');
   const [blogPosts, setBlogPosts] = useState([]);
   const [editingBlog, setEditingBlog] = useState(null);
   const [blogForm, setBlogForm] = useState({
@@ -63,7 +64,7 @@ const AdminDashboard = () => {
     email: '', phone: '', address: '', hours: '',
   });
 
-  // === EVENT STATE ===
+  // Event state
   const [events, setEvents] = useState([]);
   const [editingEvent, setEditingEvent] = useState(null);
   const [eventForm, setEventForm] = useState({
@@ -71,6 +72,14 @@ const AdminDashboard = () => {
   });
   const [selectedEventRegistrations, setSelectedEventRegistrations] = useState(null);
   const [allRegistrations, setAllRegistrations] = useState([]);
+
+  // Chat History state
+  const [chatHistories, setChatHistories] = useState([]);
+  const [chatFilterSession, setChatFilterSession] = useState('');
+  const [chatSessions, setChatSessions] = useState([]);
+  const [chatPage, setChatPage] = useState(1);
+  const [chatTotalPages, setChatTotalPages] = useState(1);
+  const [expandedSession, setExpandedSession] = useState(null); // Track which session is expanded
 
   // --- Fetch functions ---
   const fetchEnquiries = async () => {
@@ -96,12 +105,14 @@ const AdminDashboard = () => {
       setBlogPosts(res.data.data);
     } catch (err) { console.error(err); alert('Failed to load blog posts'); }
   };
+
   const fetchGallery = async () => {
     try {
       const res = await getGalleryItems();
       setGalleryItems(res.data.data);
     } catch (err) { console.error(err); alert('Failed to load gallery'); }
   };
+
   const fetchContact = async () => {
     try {
       const res = await getContactDetails();
@@ -115,17 +126,34 @@ const AdminDashboard = () => {
       setEvents(res.data.data);
     } catch (err) { console.error(err); alert('Failed to load events'); }
   };
+
   const fetchRegistrations = async (eventId) => {
     try {
       const res = await getEventRegistrations(eventId);
       setSelectedEventRegistrations({ eventId, registrations: res.data.data });
     } catch (err) { console.error(err); alert('Failed to load registrations'); }
   };
+
   const fetchAllRegistrations = async () => {
     try {
       const res = await getAllRegistrations();
       setAllRegistrations(res.data.data);
     } catch (err) { console.error(err); }
+  };
+
+  const fetchChatHistories = async () => {
+    try {
+      const params = {};
+      if (chatFilterSession) params.sessionId = chatFilterSession;
+      params.page = chatPage;
+      const res = await getChatHistories(params);
+      setChatHistories(res.data.data);
+      setChatSessions(res.data.sessions || []);
+      setChatTotalPages(res.data.pages);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load chat histories');
+    }
   };
 
   const handleDeleteRegistration = async (registrationId, eventId, registrantName) => {
@@ -141,15 +169,83 @@ const AdminDashboard = () => {
     }
   };
 
-  // Effects
+  // CSV Export
+  const exportToCSV = (dataToExport, filename = 'enquiries.csv') => {
+    if (!dataToExport.length) {
+      alert('No data to export');
+      return;
+    }
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Country', 'Job Title', 'Job Details', 'Status', 'Date'];
+    const rows = dataToExport.map(enq => [
+      enq.name,
+      enq.email,
+      enq.phone,
+      enq.company,
+      enq.country,
+      enq.jobTitle,
+      enq.jobDetails.replace(/"/g, '""'),
+      enq.status,
+      new Date(enq.createdAt).toLocaleDateString()
+    ]);
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportSelected = () => {
+    if (selectedEnquiries.length === 0) {
+      alert('No enquiries selected');
+      return;
+    }
+    const selectedData = enquiries.filter(enq => selectedEnquiries.includes(enq._id));
+    exportToCSV(selectedData, `selected_enquiries_${new Date().toISOString().slice(0,19)}.csv`);
+  };
+
+  const handleExportAll = () => {
+    if (enquiries.length === 0) {
+      alert('No enquiries to export');
+      return;
+    }
+    exportToCSV(enquiries, `all_enquiries_${new Date().toISOString().slice(0,19)}.csv`);
+  };
+
+  // --- Initial data load for overview and all tabs ---
   useEffect(() => {
-    if (activeTab === 'enquiries' || activeTab === 'contact-details') fetchEnquiries();
-    else if (activeTab === 'reviews') fetchAllReviews();
-    else if (activeTab === 'blog') fetchBlogs();
-    else if (activeTab === 'gallery') fetchGallery();
-    else if (activeTab === 'events') fetchEvents();
-    else if (activeTab === 'contact') fetchContact();
-  }, [activeTab, enquiryFilter, enquirySearch]);
+    const loadAllData = async () => {
+      await Promise.all([
+        fetchEnquiries(),
+        fetchAllReviews(),
+        fetchBlogs(),
+        fetchGallery(),
+        fetchEvents(),
+        fetchContact()
+      ]);
+    };
+    loadAllData();
+  }, []);
+
+  // Re-fetch enquiries when filter/search changes
+  useEffect(() => {
+    if (activeTab === 'enquiries' || activeTab === 'overview') {
+      fetchEnquiries();
+    }
+  }, [enquiryFilter, enquirySearch, activeTab]);
+
+  // Fetch chat histories when tab becomes active or filters/page change
+  useEffect(() => {
+    if (activeTab === 'chat-history') {
+      fetchChatHistories();
+      // Reset expanded session when changing filter
+      setExpandedSession(null);
+    }
+  }, [activeTab, chatFilterSession, chatPage]);
 
   // --- Enquiry handlers ---
   const handleStatusChange = async (id, status) => {
@@ -189,28 +285,18 @@ const AdminDashboard = () => {
 
   // --- Review handlers ---
   const handleApproveReview = async (id) => {
-    try { 
-      await approveReview(id); 
-      await fetchAllReviews();
-    } catch (err) { alert('Failed to approve review'); }
+    try { await approveReview(id); await fetchAllReviews(); }
+    catch (err) { alert('Failed to approve review'); }
   };
   const handleRejectReview = async (id) => {
     if (!window.confirm('Reject this review?')) return;
-    try { 
-      await rejectReview(id);
-      await fetchAllReviews();
-      alert('Review rejected');
-    } catch (err) { 
-      console.error(err);
-      alert('Failed to reject review'); 
-    }
+    try { await rejectReview(id); await fetchAllReviews(); alert('Review rejected'); }
+    catch (err) { console.error(err); alert('Failed to reject review'); }
   };
   const handleDeleteReview = async (id) => {
     if (window.confirm('Delete this review permanently?')) {
-      try { 
-        await deleteReview(id); 
-        await fetchAllReviews();
-      } catch (err) { alert('Failed to delete review'); }
+      try { await deleteReview(id); await fetchAllReviews(); }
+      catch (err) { alert('Failed to delete review'); }
     }
   };
 
@@ -272,7 +358,7 @@ const AdminDashboard = () => {
     } catch (err) { alert('Failed to update contact details'); }
   };
 
-  // === EVENT HANDLERS ===
+  // --- Event handlers ---
   const handleEventSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -298,7 +384,7 @@ const AdminDashboard = () => {
     window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  // --- Enhanced Analytics: Chart data aggregation by day, month, year ---
+  // --- Chart data aggregation ---
   const getChartData = () => {
     if (!enquiries.length) return [];
 
@@ -306,12 +392,11 @@ const AdminDashboard = () => {
     let groups = new Map();
 
     if (chartRange === 'day') {
-      // Last 14 days (or all available days)
       const days = 14;
       for (let i = days - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
-        const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
+        const key = d.toISOString().split('T')[0];
         groups.set(key, 0);
       }
       enquiries.forEach(enq => {
@@ -322,13 +407,11 @@ const AdminDashboard = () => {
           groups.set(key, (groups.get(key) || 0) + 1);
         }
       });
-      // Convert to array and sort by date
       return Array.from(groups.entries())
         .sort((a,b) => a[0].localeCompare(b[0]))
         .map(([date, count]) => ({ label: date.slice(5), fullDate: date, count }));
     } 
     else if (chartRange === 'month') {
-      // Last 12 months
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -347,8 +430,7 @@ const AdminDashboard = () => {
           return { label: `${monthName} ${year}`, count };
         });
     } 
-    else { // year
-      // All years present, plus current year
+    else {
       const yearsSet = new Set();
       enquiries.forEach(enq => {
         const year = new Date(enq.createdAt).getFullYear();
@@ -369,8 +451,6 @@ const AdminDashboard = () => {
   };
 
   const chartData = getChartData();
-
-  // Helper: custom tooltip for bar chart
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -385,7 +465,6 @@ const AdminDashboard = () => {
     return null;
   };
 
-  // Analytics
   const newEnquiries = enquiries.filter(e => e.status === 'new').length;
   const publishedPosts = blogPosts.filter(p => p.published).length;
 
@@ -404,16 +483,31 @@ const AdminDashboard = () => {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'enquiries', label: 'Enquiries', icon: Inbox, badge: newEnquiries },
-    { id: 'contact-details', label: 'Contact Details', icon: Mail, badge: enquiries.length },
     { id: 'reviews', label: 'Reviews', icon: Star, badge: reviewCounts.pending },
     { id: 'blog', label: 'Blog', icon: BookOpen },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'gallery', label: 'Gallery', icon: Image },
+    { id: 'chat-history', label: 'Chat History', icon: MessageCircle },
     { id: 'contact', label: 'Contact Info', icon: Phone },
   ];
 
   const getBlogCategory = (post) => (post.tags && post.tags[0]) || 'Article';
   const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
+  const formatDateTime = (dateStr) => new Date(dateStr).toLocaleString();
+
+  // Group chat histories by session
+  const groupBySession = (histories) => {
+    const grouped = new Map();
+    histories.forEach(chat => {
+      if (!grouped.has(chat.sessionId)) {
+        grouped.set(chat.sessionId, []);
+      }
+      grouped.get(chat.sessionId).push(chat);
+    });
+    return grouped;
+  };
+
+  const groupedChats = groupBySession(chatHistories);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -470,7 +564,7 @@ const AdminDashboard = () => {
               <Menu className="w-4 h-4 text-gray-600" />
             </button>
             <span className="text-sm font-bold text-gray-900 capitalize">
-              {activeTab === 'contact-details' ? 'Contact Details' : activeTab} Management
+              {activeTab} Management
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -480,7 +574,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* Overview Tab with Enhanced Chart */}
+          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -506,7 +600,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Enhanced Analytics Section */}
+              {/* Analytics Chart */}
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div>
@@ -517,39 +611,21 @@ const AdminDashboard = () => {
                     <p className="text-sm text-gray-500 mt-1">Track enquiries over time</p>
                   </div>
                   <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                    <button
-                      onClick={() => setChartRange('day')}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                        chartRange === 'day'
-                          ? 'bg-[#0055FF] text-white shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      Daily
-                    </button>
-                    <button
-                      onClick={() => setChartRange('month')}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                        chartRange === 'month'
-                          ? 'bg-[#0055FF] text-white shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      Monthly
-                    </button>
-                    <button
-                      onClick={() => setChartRange('year')}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                        chartRange === 'year'
-                          ? 'bg-[#0055FF] text-white shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      Yearly
-                    </button>
+                    {['day', 'month', 'year'].map(range => (
+                      <button
+                        key={range}
+                        onClick={() => setChartRange(range)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                          chartRange === range
+                            ? 'bg-[#0055FF] text-white shadow-sm'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {range.charAt(0).toUpperCase() + range.slice(1)}
+                      </button>
+                    ))}
                   </div>
                 </div>
-
                 <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <defs>
@@ -559,27 +635,12 @@ const AdminDashboard = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis 
-                      dataKey="label" 
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                    />
-                    <YAxis 
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      allowDecimals={false}
-                    />
+                    <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
+                    <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6' }} />
-                    <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
-                      formatter={() => <span className="text-sm text-gray-600">Number of Enquiries</span>}
-                    />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} formatter={() => <span className="text-sm text-gray-600">Number of Enquiries</span>} />
                     <Bar dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill="url(#barGradient)" />
-                      ))}
+                      {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill="url(#barGradient)" />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -592,6 +653,7 @@ const AdminDashboard = () => {
                 )}
               </div>
 
+              {/* Recent Enquiries & Pending Reviews */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-white border border-gray-200">
                   <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -641,237 +703,125 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Enquiries Tab - unchanged */}
+          {/* Enquiries Tab */}
           {activeTab === 'enquiries' && (
             <div>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Enquiries Management</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {enquiries.length} total enquiries · {enquiries.filter(e => e.status === 'new').length} new · {enquiries.filter(e => e.status === 'processed').length} processed
-                </p>
+              <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Enquiries Management</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {enquiries.length} total enquiries · {enquiries.filter(e => e.status === 'new').length} new · {enquiries.filter(e => e.status === 'processed').length} processed
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleExportSelected} disabled={selectedEnquiries.length === 0} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${selectedEnquiries.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                    <Download className="w-4 h-4" /> Export Selected
+                  </button>
+                  <button onClick={handleExportAll} disabled={enquiries.length === 0} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${enquiries.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                    <Download className="w-4 h-4" /> Export All
+                  </button>
+                </div>
               </div>
-          
+
               <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
                 <div className="flex flex-wrap gap-3 items-center justify-between">
                   <div className="flex flex-wrap gap-3 flex-1">
                     <div className="flex-1 min-w-[200px] relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        value={enquirySearch}
-                        onChange={(e) => setEnquirySearch(e.target.value)}
-                        placeholder="Search by name, email or company..."
-                        className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF] focus:ring-1 focus:ring-[#0055FF]"
-                      />
+                      <input value={enquirySearch} onChange={(e) => setEnquirySearch(e.target.value)} placeholder="Search by name, email or company..." className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF] focus:ring-1 focus:ring-[#0055FF]" />
                     </div>
-                    <select
-                      value={enquiryFilter}
-                      onChange={(e) => setEnquiryFilter(e.target.value)}
-                      className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF]"
-                    >
+                    <select value={enquiryFilter} onChange={(e) => setEnquiryFilter(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-[#0055FF]">
                       <option value="">All Statuses</option>
                       <option value="new">New</option>
                       <option value="processed">Processed</option>
                       <option value="archived">Archived</option>
                     </select>
                   </div>
-                  
                   {selectedEnquiries.length > 0 && (
                     <div className="flex gap-2 items-center bg-blue-50 px-3 py-2 rounded-lg">
                       <span className="text-sm font-medium text-blue-700">{selectedEnquiries.length} selected</span>
-                      <button
-                        onClick={() => handleBulkStatus('processed')}
-                        className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition flex items-center gap-1"
-                      >
-                        <Check className="w-3.5 h-3.5" /> Mark Processed
-                      </button>
-                      <button
-                        onClick={() => handleBulkStatus('archived')}
-                        className="bg-gray-600 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1"
-                      >
-                        <Archive className="w-3.5 h-3.5" /> Archive
-                      </button>
-                      <button
-                        onClick={handleBulkDelete}
-                        className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Delete All
-                      </button>
+                      <button onClick={() => handleBulkStatus('processed')} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Mark Processed</button>
+                      <button onClick={() => handleBulkStatus('archived')} className="bg-gray-600 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1"><Archive className="w-3.5 h-3.5" /> Archive</button>
+                      <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete All</button>
                     </div>
                   )}
                 </div>
               </div>
-          
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {enquiries.map((enq) => (
-                  <div
-                    key={enq._id}
-                    className={`bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${
-                      selectedEnquiries.includes(enq._id) ? 'border-[#0055FF] ring-2 ring-[#0055FF]/20' : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedEnquiries.includes(enq._id)}
-                            onChange={() => handleSelectOne(enq._id)}
-                            className="rounded border-gray-300 w-4 h-4 cursor-pointer"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-xs font-bold text-[#0055FF]">
-                            {enq.name.charAt(0)}
+
+              <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="w-10 px-4 py-3"><input type="checkbox" checked={selectedEnquiries.length === enquiries.length && enquiries.length > 0} onChange={(e) => { if (e.target.checked) setSelectedEnquiries(enquiries.map(e => e._id)); else setSelectedEnquiries([]); }} className="rounded border-gray-300 w-4 h-4" /></th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Name</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Email</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Company</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Country</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Date</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Status</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Job Title</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {enquiries.map((enq) => (
+                      <tr key={enq._id} className="hover:bg-gray-50 transition cursor-pointer" onClick={() => setSelectedEnquiry(enq)}>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedEnquiries.includes(enq._id)} onChange={() => handleSelectOne(enq._id)} className="rounded border-gray-300 w-4 h-4" /></td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{enq.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{enq.email}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{enq.company}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{enq.country}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{formatDate(enq.createdAt)}</td>
+                        <td className="px-4 py-3">
+                          {enq.status === 'new' && <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>New</span>}
+                          {enq.status === 'processed' && <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full"><Check className="w-3 h-3" /> Processed</span>}
+                          {enq.status === 'archived' && <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full"><Archive className="w-3 h-3" /> Archived</span>}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">{enq.jobTitle}</td>
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2">
+                            <button onClick={() => setSelectedEnquiry(enq)} className="text-gray-500 hover:text-blue-600 transition" title="View Details"><Eye className="w-4 h-4" /></button>
+                            {enq.status !== 'processed' && <button onClick={() => handleStatusChange(enq._id, 'processed')} className="text-green-600 hover:text-green-800 transition" title="Mark Processed"><Check className="w-4 h-4" /></button>}
+                            {enq.status !== 'archived' && <button onClick={() => handleStatusChange(enq._id, 'archived')} className="text-gray-600 hover:text-gray-800 transition" title="Archive"><Archive className="w-4 h-4" /></button>}
+                            <button onClick={() => handleDeleteEnquiry(enq._id)} className="text-red-600 hover:text-red-800 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleReplyEmail(enq.email, enq.name, enq.jobDetails)} className="text-blue-600 hover:text-blue-800 transition" title="Reply via Email"><Send className="w-4 h-4" /></button>
                           </div>
-                        </div>
-                        <div>
-                          {enq.status === 'new' && (
-                            <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                              New
-                            </span>
-                          )}
-                          {enq.status === 'processed' && (
-                            <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
-                              <Check className="w-3 h-3" /> Processed
-                            </span>
-                          )}
-                          {enq.status === 'archived' && (
-                            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
-                              <Archive className="w-3 h-3" /> Archived
-                            </span>
-                          )}
-                        </div>
-                      </div>
-          
-                      <div className="mb-3">
-                        <h3 className="text-lg font-bold text-gray-900">{enq.name}</h3>
-                        <p className="text-sm text-gray-600">{enq.jobTitle} · {enq.company}</p>
-                      </div>
-          
-                      <div className="space-y-2 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-gray-400" />
-                          <span className="truncate">{enq.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          <span>{enq.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-gray-400" />
-                          <span>{enq.country}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs">{formatDate(enq.createdAt)}</span>
-                        </div>
-                      </div>
-          
-                      <p className="text-gray-700 text-sm border-t pt-3 mt-2 italic">
-                        "{enq.jobDetails.substring(0, 80)}{enq.jobDetails.length > 80 && '...'}"
-                      </p>
-          
-                      <div className="mt-4 flex flex-wrap gap-2 justify-end">
-                        {enq.status !== 'processed' && (
-                          <button
-                            onClick={() => handleStatusChange(enq._id, 'processed')}
-                            className="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition flex items-center gap-1"
-                          >
-                            <Check className="w-3.5 h-3.5" /> Process
-                          </button>
-                        )}
-                        {enq.status !== 'archived' && (
-                          <button
-                            onClick={() => handleStatusChange(enq._id, 'archived')}
-                            className="bg-gray-600 text-white px-3 py-1.5 rounded text-xs hover:bg-gray-700 transition flex items-center gap-1"
-                          >
-                            <Archive className="w-3.5 h-3.5" /> Archive
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteEnquiry(enq._id)}
-                          className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-xs hover:bg-red-50 transition flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {enquiries.length === 0 && <div className="text-center text-gray-400 py-12"><Inbox className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p>No enquiries found</p></div>}
               </div>
-          
-              {enquiries.length === 0 && (
-                <div className="text-center text-gray-400 py-12 bg-white rounded-lg border border-gray-200">
-                  <Inbox className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No enquiries found</p>
-                </div>
-              )}
             </div>
           )}
-          
-          {/* Contact Details Tab - unchanged */}
-          {activeTab === 'contact-details' && (
-            <div>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Contact Details</h2>
-                <p className="text-sm text-gray-500 mt-1">{enquiries.length} contact submission{enquiries.length !== 1 ? 's' : ''} received</p>
-              </div>
-              <div className="bg-white border border-gray-200 p-4 mb-6 flex flex-wrap gap-3">
-                <div className="flex-1 min-w-[200px] relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input value={enquirySearch} onChange={(e) => setEnquirySearch(e.target.value)} placeholder="Search..." className="w-full pl-9 pr-4 py-2.5 border border-gray-200 text-sm bg-gray-50" />
+
+          {/* Full-screen Enquiry Detail Modal */}
+          {selectedEnquiry && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">Enquiry Details</h2>
+                  <button onClick={() => setSelectedEnquiry(null)} className="p-1 hover:bg-gray-100 rounded"><X className="w-6 h-6 text-gray-500" /></button>
                 </div>
-                <select value={enquiryFilter} onChange={(e) => setEnquiryFilter(e.target.value)} className="px-3 py-2.5 border border-gray-200 text-sm bg-gray-50">
-                  <option value="">All Statuses</option>
-                  <option value="new">New</option>
-                  <option value="processed">Processed</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {enquiries.map((enq) => (
-                  <div key={enq._id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedEnquiry(enq)}>
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-3">
-                        <div><h3 className="text-lg font-bold text-gray-900">{enq.name}</h3><p className="text-sm text-gray-600">{enq.jobTitle} · {enq.company}</p></div>
-                        {enq.status === 'new' && <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">New</span>}
-                      </div>
-                      <div className="space-y-2 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400" /><span>{enq.email}</span></div>
-                        <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-gray-400" /><span>{enq.phone}</span></div>
-                        <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-gray-400" /><span>{enq.country}</span></div>
-                        <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-400" /><span>{formatDate(enq.createdAt)}</span></div>
-                      </div>
-                      <p className="text-gray-700 text-sm border-t pt-3 mt-2 italic">"{enq.jobDetails.substring(0, 100)}{enq.jobDetails.length > 100 && '...'}"</p>
-                      <div className="mt-4 flex justify-end"><button onClick={(e) => { e.stopPropagation(); setSelectedEnquiry(enq); }} className="text-[#0055FF] text-sm font-medium hover:underline">View Details →</button></div>
-                    </div>
+                <div className="p-6 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Full Name</p><p className="text-gray-900 font-medium">{selectedEnquiry.name}</p></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Job Title</p><p className="text-gray-900">{selectedEnquiry.jobTitle}</p></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Email</p><p className="text-gray-900 break-all">{selectedEnquiry.email}</p></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Phone</p><p className="text-gray-900">{selectedEnquiry.phone}</p></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Company</p><p className="text-gray-900">{selectedEnquiry.company}</p></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Country</p><p className="text-gray-900">{selectedEnquiry.country}</p></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Status</p><span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${selectedEnquiry.status === 'new' ? 'bg-blue-100 text-blue-700' : selectedEnquiry.status === 'processed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{selectedEnquiry.status.toUpperCase()}</span></div>
+                    <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Submitted On</p><p className="text-gray-900">{formatDate(selectedEnquiry.createdAt)}</p></div>
                   </div>
-                ))}
-              </div>
-              {enquiries.length === 0 && <div className="text-center text-gray-400 py-12">No contact submissions yet.</div>}
-              {selectedEnquiry && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                    <div className="p-6">
-                      <div className="flex justify-between items-start mb-4"><h2 className="text-2xl font-bold text-gray-900">Contact Details</h2><button onClick={() => setSelectedEnquiry(null)}><X className="w-6 h-6 text-gray-400 hover:text-gray-600" /></button></div>
-                      <div className="space-y-4">
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Full Name</p><p className="text-gray-900">{selectedEnquiry.name}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Email</p><p className="text-gray-900">{selectedEnquiry.email}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Phone</p><p className="text-gray-900">{selectedEnquiry.phone}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Company</p><p className="text-gray-900">{selectedEnquiry.company}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Country</p><p className="text-gray-900">{selectedEnquiry.country}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Submitted</p><p className="text-gray-900">{formatDate(selectedEnquiry.createdAt)}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Job Title</p><p className="text-gray-900">{selectedEnquiry.jobTitle}</p></div>
-                        <div><p className="text-xs font-bold uppercase text-gray-500 mb-1">Job / Project Details</p><p className="text-gray-700 whitespace-pre-wrap">{selectedEnquiry.jobDetails}</p></div>
-                      </div>
-                      <div className="flex gap-3 mt-6 pt-4 border-t">
-                        <button onClick={() => handleReplyEmail(selectedEnquiry.email, selectedEnquiry.name, selectedEnquiry.jobDetails)} className="bg-[#0055FF] text-white px-4 py-2 rounded text-sm flex items-center gap-2"><Send className="w-4 h-4" /> Reply via Email</button>
-                        <button onClick={() => setSelectedEnquiry(null)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-50">Close</button>
-                      </div>
-                    </div>
-                  </div>
+                  <div><p className="text-xs font-bold uppercase text-gray-500 mb-2">Job / Project Details</p><div className="bg-gray-50 p-4 rounded-lg border border-gray-200"><p className="text-gray-800 whitespace-pre-wrap">{selectedEnquiry.jobDetails}</p></div></div>
                 </div>
-              )}
+                <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3">
+                  <button onClick={() => handleReplyEmail(selectedEnquiry.email, selectedEnquiry.name, selectedEnquiry.jobDetails)} className="bg-[#0055FF] text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"><Send className="w-4 h-4" /> Reply via Email</button>
+                  <button onClick={() => setSelectedEnquiry(null)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Close</button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -882,92 +832,39 @@ const AdminDashboard = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Review Moderation</h2>
                 <div className="flex gap-4 mt-2 border-b">
                   {['all', 'pending', 'approved', 'rejected'].map(status => (
-                    <button
-                      key={status}
-                      onClick={() => setReviewFilter(status)}
-                      className={`px-4 py-2 text-sm font-medium transition-colors ${
-                        reviewFilter === status
-                          ? 'border-b-2 border-[#0055FF] text-[#0055FF]'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
+                    <button key={status} onClick={() => setReviewFilter(status)} className={`px-4 py-2 text-sm font-medium transition-colors ${reviewFilter === status ? 'border-b-2 border-[#0055FF] text-[#0055FF]' : 'text-gray-500 hover:text-gray-700'}`}>
                       {status.toUpperCase()} ({reviewCounts[status]})
                     </button>
                   ))}
                 </div>
               </div>
-
               <div className="space-y-4">
                 {filteredReviews.map(review => (
                   <div key={review._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
                     <div className="flex justify-between items-start flex-wrap gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-gray-900">{review.name}</h3>
-                          <span className="text-sm text-gray-500">· {review.company}</span>
-                          <span className="text-xs text-gray-400 ml-2">{formatDate(review.date)}</span>
-                        </div>
-                        <div className="flex items-center gap-1 my-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                            />
-                          ))}
-                        </div>
+                        <div className="flex items-center gap-2 flex-wrap"><h3 className="font-bold text-gray-900">{review.name}</h3><span className="text-sm text-gray-500">· {review.company}</span><span className="text-xs text-gray-400 ml-2">{formatDate(review.date)}</span></div>
+                        <div className="flex items-center gap-1 my-2">{[...Array(5)].map((_, i) => <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />)}</div>
                         <p className="text-gray-700 italic">"{review.comment}"</p>
-                        <div className="mt-3">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                            review.status === 'approved' ? 'bg-green-100 text-green-800' :
-                            review.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {review.status.toUpperCase()}
-                          </span>
-                        </div>
+                        <div className="mt-3"><span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${review.status === 'approved' ? 'bg-green-100 text-green-800' : review.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{review.status.toUpperCase()}</span></div>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
-                        {review.status !== 'approved' && (
-                          <button
-                            onClick={() => handleApproveReview(review._id)}
-                            className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-emerald-700"
-                          >
-                            <ThumbsUp className="w-3.5 h-3.5" /> Approve
-                          </button>
-                        )}
-                        {review.status !== 'rejected' && (
-                          <button
-                            onClick={() => handleRejectReview(review._id)}
-                            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-700"
-                          >
-                            <ThumbsDown className="w-3.5 h-3.5" /> Reject
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteReview(review._id)}
-                          className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
+                        {review.status !== 'approved' && <button onClick={() => handleApproveReview(review._id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-emerald-700"><ThumbsUp className="w-3.5 h-3.5" /> Approve</button>}
+                        {review.status !== 'rejected' && <button onClick={() => handleRejectReview(review._id)} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-700"><ThumbsDown className="w-3.5 h-3.5" /> Reject</button>}
+                        <button onClick={() => handleDeleteReview(review._id)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                       </div>
                     </div>
                   </div>
                 ))}
-                {filteredReviews.length === 0 && (
-                  <div className="text-center text-gray-400 py-12">No reviews in this category.</div>
-                )}
+                {filteredReviews.length === 0 && <div className="text-center text-gray-400 py-12">No reviews in this category.</div>}
               </div>
             </div>
           )}
 
-          {/* Blog Tab - unchanged */}
+          {/* Blog Tab */}
           {activeTab === 'blog' && (
             <div>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Blog Management</h2>
-                <p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p>
-              </div>
-
+              <div className="mb-6"><h2 className="text-2xl font-bold text-gray-900">Blog Management</h2><p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p></div>
               <div id="blog-form" className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
                 <h3 className="text-lg font-bold mb-4">{editingBlog ? 'Edit Post' : 'Create New Post'}</h3>
                 <form onSubmit={handleBlogSubmit} className="space-y-4">
@@ -978,30 +875,15 @@ const AdminDashboard = () => {
                   <input type="text" placeholder="Author" value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <input type="text" placeholder="Tags (comma separated)" value={blogForm.tags.join(', ')} onChange={(e) => setBlogForm({...blogForm, tags: e.target.value.split(',').map(t => t.trim())})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={blogForm.published} onChange={(e) => setBlogForm({...blogForm, published: e.target.checked})} /> Published (visible on website)</label>
-                  <div className="flex gap-2">
-                    <button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>
-                    {editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] }); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}
-                  </div>
+                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>{editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] }); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}</div>
                 </form>
               </div>
-
               <div className="space-y-4">
                 {blogPosts.map(post => (
                   <div key={post._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
                     <div className="flex justify-between items-start flex-wrap gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{getBlogCategory(post)}</span>
-                          {post.published ? <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Published</span> : <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">Draft</span>}
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">{post.title}</h3>
-                        <p className="text-gray-600 text-sm mb-3">{post.excerpt}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-400"><span>{post.author}</span><span>·</span><span>{formatDate(post.createdAt)}</span></div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEditBlog(post)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-gray-50"><Edit className="w-3.5 h-3.5" /> Edit</button>
-                        <button onClick={() => handleDeleteBlog(post._id)} className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
-                      </div>
+                      <div className="flex-1"><div className="flex items-center gap-2 flex-wrap mb-2"><span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{getBlogCategory(post)}</span>{post.published ? <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Published</span> : <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">Draft</span>}</div><h3 className="text-xl font-bold text-gray-900 mb-1">{post.title}</h3><p className="text-gray-600 text-sm mb-3">{post.excerpt}</p><div className="flex items-center gap-3 text-xs text-gray-400"><span>{post.author}</span><span>·</span><span>{formatDate(post.createdAt)}</span></div></div>
+                      <div className="flex gap-2"><button onClick={() => handleEditBlog(post)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-gray-50"><Edit className="w-3.5 h-3.5" /> Edit</button><button onClick={() => handleDeleteBlog(post._id)} className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button></div>
                     </div>
                   </div>
                 ))}
@@ -1010,130 +892,178 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Events Tab - unchanged */}
+          {/* Events Tab */}
           {activeTab === 'events' && (
             <div>
-              <div className="mb-6 flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Event Management</h2>
-                  <p className="text-sm text-gray-500 mt-1">{events.length} total events</p>
-                </div>
-              </div>
-
+              <div className="mb-6 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-900">Event Management</h2><p className="text-sm text-gray-500 mt-1">{events.length} total events</p></div></div>
               <div id="event-form" className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
                 <h3 className="text-lg font-bold mb-4">{editingEvent ? 'Edit Event' : 'Create Event'}</h3>
                 <form onSubmit={handleEventSubmit} className="space-y-4">
                   <input type="text" placeholder="Title *" value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} required className="w-full border rounded p-2" />
                   <textarea placeholder="Description *" rows="3" value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} required className="w-full border rounded p-2" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="date" value={eventForm.date.split('T')[0]} onChange={e => setEventForm({...eventForm, date: e.target.value})} required className="border rounded p-2" />
-                    <input type="text" placeholder="Time (e.g., 10:00 – 18:00 BST)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required className="border rounded p-2" />
-                  </div>
+                  <div className="grid grid-cols-2 gap-4"><input type="date" value={eventForm.date.split('T')[0]} onChange={e => setEventForm({...eventForm, date: e.target.value})} required className="border rounded p-2" /><input type="text" placeholder="Time (e.g., 10:00 – 18:00 BST)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required className="border rounded p-2" /></div>
                   <input type="text" placeholder="Location *" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} required className="w-full border rounded p-2" />
                   <input type="text" placeholder="Image URL" value={eventForm.image} onChange={e => setEventForm({...eventForm, image: e.target.value})} className="w-full border rounded p-2" />
                   <input type="number" placeholder="Capacity *" min="1" value={eventForm.capacity} onChange={e => setEventForm({...eventForm, capacity: parseInt(e.target.value)})} required className="w-full border rounded p-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={eventForm.isActive} onChange={e => setEventForm({...eventForm, isActive: e.target.checked})} /> Active (visible on website)</label>
-                  <div className="flex gap-2">
-                    <button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingEvent ? 'Update' : 'Create'}</button>
-                    {editingEvent && <button type="button" onClick={() => { setEditingEvent(null); setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true }); }} className="border px-4 py-2 rounded">Cancel</button>}
-                  </div>
+                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingEvent ? 'Update' : 'Create'}</button>{editingEvent && <button type="button" onClick={() => { setEditingEvent(null); setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true }); }} className="border px-4 py-2 rounded">Cancel</button>}</div>
                 </form>
               </div>
-
               <div className="space-y-6">
                 {events.map(event => (
                   <div key={event._id} className="bg-white border border-gray-200 rounded-lg p-5">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
-                        <p className="text-gray-600 text-sm mt-1">{event.description}</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm text-gray-500">
-                          <span className="flex items-center gap-1"><Calendar size={14} />{new Date(event.date).toLocaleDateString()}</span>
-                          <span className="flex items-center gap-1"><Clock size={14} />{event.time}</span>
-                          <span className="flex items-center gap-1"><MapPin size={14} />{event.location}</span>
-                          <span className="flex items-center gap-1"><Users size={14} />{event.registrations}/{event.capacity}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => { setEditingEvent(event); setEventForm({ ...event, date: event.date.split('T')[0] }); }} className="border border-gray-300 px-3 py-1 rounded text-sm">Edit</button>
-                        <button onClick={() => handleDeleteEvent(event._id)} className="border border-red-200 text-red-600 px-3 py-1 rounded text-sm">Delete</button>
-                        <button onClick={() => fetchRegistrations(event._id)} className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm">View Registrations</button>
-                      </div>
+                      <div className="flex-1"><h3 className="text-xl font-bold text-gray-900">{event.title}</h3><p className="text-gray-600 text-sm mt-1">{event.description}</p><div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm text-gray-500"><span className="flex items-center gap-1"><Calendar size={14} />{new Date(event.date).toLocaleDateString()}</span><span className="flex items-center gap-1"><Clock size={14} />{event.time}</span><span className="flex items-center gap-1"><MapPin size={14} />{event.location}</span><span className="flex items-center gap-1"><Users size={14} />{event.registrations}/{event.capacity}</span></div></div>
+                      <div className="flex gap-2"><button onClick={() => { setEditingEvent(event); setEventForm({ ...event, date: event.date.split('T')[0] }); }} className="border border-gray-300 px-3 py-1 rounded text-sm">Edit</button><button onClick={() => handleDeleteEvent(event._id)} className="border border-red-200 text-red-600 px-3 py-1 rounded text-sm">Delete</button><button onClick={() => fetchRegistrations(event._id)} className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm">View Registrations</button></div>
                     </div>
                   </div>
                 ))}
               </div>
-
               {selectedEventRegistrations && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto">
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold">Registrations</h3>
-                        <button onClick={() => setSelectedEventRegistrations(null)}><X size={20} /></button>
-                      </div>
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-100">
-                          <tr><th className="p-2 text-left">Name</th><th>Email</th><th>Phone</th><th>Date</th><th>Action</th></tr>
-                        </thead>
-                        <tbody>
-                          {selectedEventRegistrations.registrations.map(reg => (
-                            <tr key={reg._id} className="border-t">
-                              <td className="p-2">{reg.name}</td><td className="p-2">{reg.email}</td><td className="p-2">{reg.phone}</td>
-                              <td className="p-2">{new Date(reg.createdAt).toLocaleDateString()}</td>
-                              <td className="p-2">
-                                <button onClick={() => handleDeleteRegistration(reg._id, selectedEventRegistrations.eventId, reg.name)} className="text-red-600 hover:text-red-800 transition"><Trash2 size={16} /></button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto"><div className="p-6"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">Registrations</h3><button onClick={() => setSelectedEventRegistrations(null)}><X size={20} /></button></div><table className="w-full text-sm"><thead className="bg-gray-100"><tr><th className="p-2 text-left">Name</th><th>Email</th><th>Phone</th><th>Date</th><th>Action</th></tr></thead><tbody>{selectedEventRegistrations.registrations.map(reg => (<tr key={reg._id} className="border-t"><td className="p-2">{reg.name}</td><td className="p-2">{reg.email}</td><td className="p-2">{reg.phone}</td><td className="p-2">{new Date(reg.createdAt).toLocaleDateString()}</td><td className="p-2"><button onClick={() => handleDeleteRegistration(reg._id, selectedEventRegistrations.eventId, reg.name)} className="text-red-600 hover:text-red-800 transition"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div></div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Gallery Tab - unchanged */}
+          {/* Gallery Tab */}
           {activeTab === 'gallery' && (
             <div>
-              <div className="bg-white border p-5 mb-6">
-                <h2 className="text-xl font-bold mb-4">Add Gallery Item</h2>
-                <form onSubmit={handleGallerySubmit} className="space-y-4">
-                  <input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
-                  <input type="text" placeholder="Image URL *" value={galleryForm.image} onChange={(e) => setGalleryForm({...galleryForm, image: e.target.value})} required className="w-full border p-2" />
-                  <select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border p-2">
-                    <option value="event">Event</option><option value="product">Product</option><option value="team">Team</option><option value="workshop">Workshop</option>
-                  </select>
-                  <input type="text" placeholder="Description" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border p-2" />
-                  <button type="submit" className="bg-blue-600 text-white px-4 py-2">Add</button>
-                </form>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {galleryItems.map((item) => (
-                  <div key={item._id} className="border p-2">
-                    <img src={item.image} alt={item.title} className="w-full h-32 object-cover" />
-                    <p className="font-bold">{item.title}</p>
-                    <button onClick={() => handleDeleteGallery(item._id)} className="text-red-600 text-sm">Delete</button>
-                  </div>
-                ))}
-              </div>
+              <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Image URL *" value={galleryForm.image} onChange={(e) => setGalleryForm({...galleryForm, image: e.target.value})} required className="w-full border p-2" /><select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border p-2"><option value="event">Event</option><option value="product">Product</option><option value="team">Team</option><option value="workshop">Workshop</option></select><input type="text" placeholder="Description" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Add</button></form></div>
+              <div className="grid grid-cols-3 gap-4">{galleryItems.map((item) => (<div key={item._id} className="border p-2"><img src={item.image} alt={item.title} className="w-full h-32 object-cover" /><p className="font-bold">{item.title}</p><button onClick={() => handleDeleteGallery(item._id)} className="text-red-600 text-sm">Delete</button></div>))}</div>
             </div>
           )}
 
-          {/* Contact Info Tab - unchanged */}
-          {activeTab === 'contact' && (
-            <div className="bg-white border p-6 max-w-2xl">
-              <h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2>
-              <form onSubmit={handleContactUpdate} className="space-y-4">
-                <input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" />
-                <input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" />
-                <input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" />
-                <input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" />
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button>
-              </form>
+          {/* Chat History Tab - Improved with Session Grouping and Table Format */}
+          {activeTab === 'chat-history' && (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Chat Conversation History</h2>
+                <p className="text-sm text-gray-500 mt-1">All user interactions with the AI assistant grouped by session</p>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Filter by Session</label>
+                  <select
+                    value={chatFilterSession}
+                    onChange={(e) => setChatFilterSession(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                  >
+                    <option value="">All Sessions ({groupedChats.size} sessions)</option>
+                    {chatSessions.map(session => {
+                      const messageCount = groupedChats.get(session)?.length || 0;
+                      const lastMessage = groupedChats.get(session)?.[0]?.timestamp;
+                      return (
+                        <option key={session} value={session}>
+                          {session.substring(0, 20)}... ({messageCount} messages)
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <button
+                  onClick={() => setChatFilterSession('')}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Clear Filter
+                </button>
+              </div>
+
+              {/* Sessions List - Expandable/Collapsible */}
+              <div className="space-y-4">
+                {Array.from(groupedChats.entries()).map(([sessionId, messages]) => (
+                  <div key={sessionId} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Session Header - Click to expand/collapse */}
+                    <button
+                      onClick={() => setExpandedSession(expandedSession === sessionId ? null : sessionId)}
+                      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        {expandedSession === sessionId ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+                        <MessageCircle className="w-5 h-5 text-[#0055FF]" />
+                        <div className="text-left">
+                          <p className="text-sm font-mono text-gray-700">{sessionId}</p>
+                          <p className="text-xs text-gray-400">
+                            {messages.length} messages · Last: {formatDateTime(messages[messages.length - 1]?.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(messages[0]?.timestamp).toLocaleDateString()}
+                      </div>
+                    </button>
+
+                    {/* Expanded Content - Table of all messages in this session */}
+                    {expandedSession === sessionId && (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-2">Time</th>
+                              <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-2">User Message</th>
+                              <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-2">Bot Response</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {messages.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)).map((chat, idx) => (
+                              <tr key={chat._id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                                  {formatDateTime(chat.timestamp)}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-800 max-w-md">
+                                  <div className="bg-blue-50 p-2 rounded">
+                                    {chat.userMessage}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-800 max-w-md">
+                                  <div className="bg-gray-50 p-2 rounded">
+                                    {chat.botResponse}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {groupedChats.size === 0 && (
+                  <div className="text-center text-gray-400 py-12">
+                    <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No chat history found.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {chatTotalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-6">
+                  <button
+                    onClick={() => setChatPage(p => Math.max(1, p - 1))}
+                    disabled={chatPage === 1}
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-3 py-1">Page {chatPage} of {chatTotalPages}</span>
+                  <button
+                    onClick={() => setChatPage(p => Math.min(chatTotalPages, p + 1))}
+                    disabled={chatPage === chatTotalPages}
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Contact Info Tab */}
+          {activeTab === 'contact' && (
+            <div className="bg-white border p-6 max-w-2xl"><h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2><form onSubmit={handleContactUpdate} className="space-y-4"><input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button></form></div>
           )}
         </main>
       </div>

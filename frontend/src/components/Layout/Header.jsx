@@ -37,26 +37,16 @@ const Header = () => {
           right: 0,
           zIndex: 1000,
           transition: 'all 0.3s ease',
-          background: scrolled
-            ? 'rgba(3, 7, 18, 0.92)'
-            : 'transparent',
+          background: scrolled ? 'rgba(3, 7, 18, 0.92)' : 'transparent',
           backdropFilter: scrolled ? 'blur(20px)' : 'none',
           borderBottom: scrolled ? '1px solid rgba(99, 102, 241, 0.15)' : 'none',
         }}
       >
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '72px' }}>
-            {/* Logo – matches admin page style */}
-            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                border: '2px solid rgba(255,255,255,0.9)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-              }}>
+        <div className="header-container">
+          <div className="header-inner">
+            {/* Logo */}
+            <Link to="/" className="logo-link">
+              <div className="logo-box">
                 <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
                   <rect x="1" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
                   <rect x="9" y="1" width="6" height="6" stroke="white" strokeWidth="1.5" />
@@ -64,48 +54,18 @@ const Header = () => {
                   <rect x="9" y="9" width="6" height="6" stroke="white" strokeWidth="1.5" />
                 </svg>
               </div>
-              <span style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #fff 0%, #94a3b8 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                AI Solutions
-              </span>
+              <span className="logo-text">AI Solutions</span>
             </Link>
 
-            {/* Desktop nav – unchanged */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="hidden-mobile">
-              {NAV_LINKS.map(link => {
+            {/* Desktop Navigation */}
+            <div className="nav-desktop">
+              {NAV_LINKS.map((link) => {
                 const isActive = pathname === link.path;
                 return (
                   <Link
                     key={link.path}
                     to={link.path}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      transition: 'all 0.2s ease',
-                      color: isActive ? '#a5b4fc' : '#94a3b8',
-                      background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                    }}
-                    onMouseEnter={e => {
-                      if (!isActive) {
-                        e.currentTarget.style.color = '#e2e8f0';
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!isActive) {
-                        e.currentTarget.style.color = '#94a3b8';
-                        e.currentTarget.style.background = 'transparent';
-                      }
-                    }}
+                    className={`nav-link ${isActive ? 'active' : ''}`}
                   >
                     {link.label}
                   </Link>
@@ -113,106 +73,208 @@ const Header = () => {
               })}
             </div>
 
-            {/* Right side – unchanged */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Link
-                to="/contact"
-                style={{
-                  padding: '10px 24px',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  color: 'white',
-                  background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-                className="hidden-mobile"
-              >
-                Contact Us
-              </Link>
+            {/* Desktop Contact Button */}
+            <Link to="/contact" className="contact-btn desktop-only">
+              Contact Us
+            </Link>
 
-              <button
-                onClick={() => setMobileOpen(!mobileOpen)}
-                style={{
-                  display: 'none',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(99,102,241,0.2)',
-                  borderRadius: '8px',
-                  padding: '8px',
-                  cursor: 'pointer',
-                  color: '#e2e8f0',
-                }}
-                className="show-mobile"
-              >
-                {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-              </button>
-            </div>
+            {/* Mobile Menu Button */}
+            <button className="mobile-menu-btn" onClick={() => setMobileOpen(!mobileOpen)}>
+              {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
 
-        {/* Mobile menu – unchanged */}
+        {/* Mobile Menu Dropdown */}
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              style={{
-                background: 'rgba(3, 7, 18, 0.98)',
-                borderTop: '1px solid rgba(99, 102, 241, 0.15)',
-                overflow: 'hidden',
-              }}
+              className="mobile-menu"
             >
-              <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {NAV_LINKS.map(link => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontSize: '1rem',
-                      fontWeight: 500,
-                      color: pathname === link.path ? '#a5b4fc' : '#94a3b8',
-                      background: pathname === link.path ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                    }}
-                  >
-                    {link.label}
+              <div className="header-container">
+                <div className="mobile-nav-links">
+                  {NAV_LINKS.map((link) => (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      className={`mobile-nav-link ${pathname === link.path ? 'active' : ''}`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                  <Link to="/contact" className="mobile-contact-btn">
+                    Contact Us
                   </Link>
-                ))}
-                <Link
-                  to="/contact"
-                  style={{
-                    marginTop: '8px',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    color: 'white',
-                    background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
-                    textAlign: 'center',
-                  }}
-                >
-                  Contact Us
-                </Link>
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </nav>
 
-      {/* Responsive CSS classes */}
-      <style>{`
-        @media (max-width: 768px) {
-          .hidden-mobile { display: none !important; }
-          .show-mobile { display: flex !important; }
+      <style jsx>{`
+        /* Container styles */
+        .header-container {
+          max-width: 1600px;
+          margin: 0 auto;
+          padding: 0 32px;
         }
-        @media (min-width: 769px) {
-          .show-mobile { display: none !important; }
+        .header-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 72px;
+        }
+        /* Logo */
+        .logo-link {
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .logo-box {
+          width: 36px;
+          height: 36px;
+          border: 2px solid rgba(255,255,255,0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+        }
+        .logo-text {
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 1.25rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        /* Desktop navigation */
+        .nav-desktop {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .nav-link {
+          padding: 8px 20px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-size: 1rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
+          color: #94a3b8;
+          background: transparent;
+        }
+        .nav-link:hover {
+          color: #e2e8f0;
+          background: rgba(255,255,255,0.05);
+        }
+        .nav-link.active {
+          color: #a5b4fc;
+          background: rgba(99, 102, 241, 0.1);
+        }
+        /* Desktop contact button */
+        .contact-btn {
+          padding: 10px 28px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: white;
+          background: linear-gradient(135deg, #6366f1, #06b6d4);
+          white-space: nowrap;
+          transition: opacity 0.2s;
+        }
+        .contact-btn:hover {
+          opacity: 0.9;
+        }
+        /* Mobile menu button - hidden on desktop */
+        .mobile-menu-btn {
+          display: none;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(99,102,241,0.2);
+          border-radius: 8px;
+          padding: 8px;
+          cursor: pointer;
+          color: #e2e8f0;
+        }
+        /* Mobile menu styles */
+        .mobile-menu {
+          background: rgba(3, 7, 18, 0.98);
+          border-top: 1px solid rgba(99, 102, 241, 0.15);
+          overflow: hidden;
+        }
+        .mobile-nav-links {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 16px 0;
+        }
+        .mobile-nav-link {
+          padding: 12px 16px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-size: 1rem;
+          font-weight: 500;
+          color: #94a3b8;
+          background: transparent;
+        }
+        .mobile-nav-link.active {
+          color: #a5b4fc;
+          background: rgba(99, 102, 241, 0.1);
+        }
+        .mobile-contact-btn {
+          margin-top: 8px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-size: 1rem;
+          font-weight: 600;
+          color: white;
+          background: linear-gradient(135deg, #6366f1, #06b6d4);
+          text-align: center;
+        }
+        /* Responsive breakpoints */
+        @media (max-width: 1024px) {
+          .nav-desktop {
+            gap: 2px;
+          }
+          .nav-link {
+            padding: 8px 16px;
+          }
+        }
+        @media (max-width: 900px) {
+          .nav-desktop,
+          .desktop-only {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: flex !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .header-container {
+            padding: 0 24px;
+          }
+          .logo-text {
+            font-size: 1.1rem;
+          }
+          .logo-box {
+            width: 32px;
+            height: 32px;
+          }
+          .header-inner {
+            height: 64px;
+          }
+        }
+        @media (max-width: 480px) {
+          .logo-text {
+            font-size: 1rem;
+          }
         }
       `}</style>
     </>

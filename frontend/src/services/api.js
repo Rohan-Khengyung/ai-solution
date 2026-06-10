@@ -59,4 +59,7 @@ export const getAllRegistrations = () => API.get('/admin/registrations');
 // Delete a registration (admin)
 export const deleteRegistration = (id) => API.delete(`/admin/registrations/${id}`);
 
+// Chat histories (admin)
+export const getChatHistories = (params) => API.get('/admin/chat-histories', { params });
+
 export default API;

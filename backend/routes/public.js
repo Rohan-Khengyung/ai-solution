@@ -7,6 +7,7 @@ const { getGalleryItems } = require('../controllers/galleryController');
 const { getContactDetails } = require('../controllers/contactController');
 const { getActiveEvents, registerForEvent } = require('../controllers/eventController');
 const { validate, enquiryValidation, reviewValidation } = require('../middleware/validation');
+const { storeChatMessage } = require('../controllers/chatController');
 
 // Enquiries
 router.post('/enquiries', validate(enquiryValidation), submitEnquiry);
@@ -28,5 +29,8 @@ router.get('/contact', getContactDetails);
 // Events (public)
 router.get('/events', getActiveEvents);
 router.post('/events/register', registerForEvent);
+
+// Chat history 
+router.post('/chat/store', storeChatMessage);
 
 module.exports = router;
