@@ -62,4 +62,10 @@ export const deleteRegistration = (id) => API.delete(`/admin/registrations/${id}
 // Chat histories (admin)
 export const getChatHistories = (params) => API.get('/admin/chat-histories', { params });
 
+// Admin Users
+export const getAdminUsers = () => API.get('/admin/users');
+export const createAdminUser = (data) => API.post('/admin/users', data);
+export const updateAdminUser = (id, data) => API.put(`/admin/users/${id}`, data);
+export const deleteAdminUser = (id) => API.delete(`/admin/users/${id}`);
+
 export default API;

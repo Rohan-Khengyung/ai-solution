@@ -10,7 +10,7 @@ const { updateContactDetails } = require('../controllers/contactController');
 const { deleteRegistration } = require('../controllers/eventRegistrationController');
 const eventController = require('../controllers/eventController');
 const { getChatHistories } = require('../controllers/chatController');
-
+const { getUsers, createUser, updateUser, deleteUser } = require('../controllers/adminUserController');
 
 // Auth
 router.post('/login', loginAdmin);
@@ -53,5 +53,11 @@ router.delete('/registrations/:id', protect, deleteRegistration);
 
 // Chat histories
 router.get('/chat-histories', protect, getChatHistories)
+
+// User Management
+router.get('/users', protect, getUsers);
+router.post('/users', protect, createUser);
+router.put('/users/:id', protect, updateUser);
+router.delete('/users/:id', protect, deleteUser);
 
 module.exports = router;

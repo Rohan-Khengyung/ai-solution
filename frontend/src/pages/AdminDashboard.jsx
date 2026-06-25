@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
   Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive,
-  Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown
+  Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown, UserPlus
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -31,6 +31,10 @@ import {
   getAllRegistrations,
   deleteRegistration,
   getChatHistories,
+  getAdminUsers,
+  createAdminUser,
+  updateAdminUser,
+  deleteAdminUser,
 } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -80,6 +84,14 @@ const AdminDashboard = () => {
   const [chatPage, setChatPage] = useState(1);
   const [chatTotalPages, setChatTotalPages] = useState(1);
   const [expandedSession, setExpandedSession] = useState(null); // Track which session is expanded
+
+  // --- User Management State ---
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm, setUserForm] = useState({
+    username: '', email: '', password: '', role: 'viewer'
+  });
+  const [showUserModal, setShowUserModal] = useState(false);
 
   // --- Fetch functions ---
   const fetchEnquiries = async () => {
@@ -156,6 +168,16 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchAdminUsers = async () => {
+    try {
+      const res = await getAdminUsers();
+      setAdminUsers(res.data.data);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load admin users');
+    }
+  };
+
   const handleDeleteRegistration = async (registrationId, eventId, registrantName) => {
     if (window.confirm(`Delete registration for ${registrantName}?`)) {
       try {
@@ -225,7 +247,8 @@ const AdminDashboard = () => {
         fetchBlogs(),
         fetchGallery(),
         fetchEvents(),
-        fetchContact()
+        fetchContact(),
+        fetchAdminUsers(), // load users on mount
       ]);
     };
     loadAllData();
@@ -384,6 +407,59 @@ const AdminDashboard = () => {
     window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
+  // --- User Management Handlers ---
+  const handleUserSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingUser) {
+        // For edit, we may send password only if provided
+        const payload = { ...userForm };
+        if (!payload.password) delete payload.password; // don't send empty password
+        await updateAdminUser(editingUser._id, payload);
+        alert('User updated successfully');
+      } else {
+        const res = await createAdminUser(userForm);
+        // Send credentials via email using mailto
+        const email = res.data.data.email;
+        const username = res.data.data.username;
+        const password = userForm.password;
+        const subject = 'Your AI Solutions Admin Account';
+        const body = `Hello ${username},\n\nAn admin account has been created for you at AI Solutions.\n\nUsername: ${username}\nPassword: ${password}\n\nPlease login at: ${window.location.origin}/admin\n\nYou can change your password after login.\n\nBest regards,\nAI Solutions Team`;
+        window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        alert('User created. Email client opened to send credentials.');
+      }
+      setShowUserModal(false);
+      setEditingUser(null);
+      setUserForm({ username: '', email: '', password: '', role: 'viewer' });
+      fetchAdminUsers();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to save user');
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setUserForm({
+      username: user.username,
+      email: user.email,
+      password: '', // blank for edit
+      role: user.role,
+    });
+    setShowUserModal(true);
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (window.confirm('Delete this admin user? This action cannot be undone.')) {
+      try {
+        await deleteAdminUser(id);
+        alert('User deleted');
+        fetchAdminUsers();
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to delete user');
+      }
+    }
+  };
+
   // --- Chart data aggregation ---
   const getChartData = () => {
     if (!enquiries.length) return [];
@@ -480,6 +556,7 @@ const AdminDashboard = () => {
     return review.status === reviewFilter;
   });
 
+  // Navigation items – added 'users' after chat-history
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'enquiries', label: 'Enquiries', icon: Inbox, badge: newEnquiries },
@@ -488,6 +565,7 @@ const AdminDashboard = () => {
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'gallery', label: 'Gallery', icon: Image },
     { id: 'chat-history', label: 'Chat History', icon: MessageCircle },
+    { id: 'users', label: 'Users', icon: Users },   // <-- New User Management
     { id: 'contact', label: 'Contact Info', icon: Phone },
   ];
 
@@ -935,7 +1013,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Chat History Tab - Improved with Session Grouping and Table Format */}
+          {/* Chat History Tab */}
           {activeTab === 'chat-history' && (
             <div>
               <div className="mb-6">
@@ -971,11 +1049,9 @@ const AdminDashboard = () => {
                 </button>
               </div>
 
-              {/* Sessions List - Expandable/Collapsible */}
               <div className="space-y-4">
                 {Array.from(groupedChats.entries()).map(([sessionId, messages]) => (
                   <div key={sessionId} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    {/* Session Header - Click to expand/collapse */}
                     <button
                       onClick={() => setExpandedSession(expandedSession === sessionId ? null : sessionId)}
                       className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
@@ -995,7 +1071,6 @@ const AdminDashboard = () => {
                       </div>
                     </button>
 
-                    {/* Expanded Content - Table of all messages in this session */}
                     {expandedSession === sessionId && (
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -1038,7 +1113,6 @@ const AdminDashboard = () => {
                 )}
               </div>
 
-              {/* Pagination */}
               {chatTotalPages > 1 && (
                 <div className="flex justify-center gap-2 mt-6">
                   <button
@@ -1061,12 +1135,114 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* --- USER MANAGEMENT TAB (NEW) --- */}
+          {activeTab === 'users' && (
+            <div>
+              <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+                  <p className="text-sm text-gray-500 mt-1">Manage admin accounts and permissions</p>
+                </div>
+                <button
+                  onClick={() => { setEditingUser(null); setUserForm({ username: '', email: '', password: '', role: 'viewer' }); setShowUserModal(true); }}
+                  className="flex items-center gap-2 bg-[#0055FF] text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                  <UserPlus className="w-4 h-4" /> Add New User
+                </button>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">ID</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Username</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Email</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Role</th>
+                      <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {adminUsers.map((user) => (
+                      <tr key={user._id} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 text-sm text-gray-500">#{user._id.slice(-6)}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{user.username}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
+                            user.role === 'superadmin' ? 'bg-red-100 text-red-700' :
+                            user.role === 'admin' ? 'bg-blue-100 text-blue-700' :
+                            user.role === 'manager' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {user.role.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex gap-2">
+                            <button onClick={() => handleEditUser(user)} className="text-blue-600 hover:text-blue-800 transition" title="Edit"><Edit className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteUser(user._id)} className="text-red-600 hover:text-red-800 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {adminUsers.length === 0 && (
+                  <div className="text-center text-gray-400 py-12">
+                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No admin users found.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Contact Info Tab */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl"><h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2><form onSubmit={handleContactUpdate} className="space-y-4"><input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button></form></div>
           )}
         </main>
       </div>
+
+      {/* User Modal (Add/Edit) */}
+      {showUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">{editingUser ? 'Edit User' : 'Add New User'}</h2>
+              <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="p-1 hover:bg-gray-100 rounded"><X className="w-6 h-6 text-gray-500" /></button>
+            </div>
+            <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Username *</label>
+                <input type="text" required value={userForm.username} onChange={(e) => setUserForm({...userForm, username: e.target.value})} className="w-full border p-2 rounded" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email *</label>
+                <input type="email" required value={userForm.email} onChange={(e) => setUserForm({...userForm, email: e.target.value})} className="w-full border p-2 rounded" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">{editingUser ? 'New Password (leave blank to keep current)' : 'Password *'}</label>
+                <input type="password" required={!editingUser} value={userForm.password} onChange={(e) => setUserForm({...userForm, password: e.target.value})} className="w-full border p-2 rounded" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Role</label>
+                <select value={userForm.role} onChange={(e) => setUserForm({...userForm, role: e.target.value})} className="w-full border p-2 rounded">
+                  <option value="viewer">Viewer</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                  <option value="superadmin">Superadmin</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded hover:bg-blue-700">{editingUser ? 'Update' : 'Create'}</button>
+                <button type="button" onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

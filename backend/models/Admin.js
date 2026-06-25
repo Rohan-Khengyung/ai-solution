@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const adminSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3
+  },
   email: {
     type: String,
     required: true,
@@ -14,11 +21,15 @@ const adminSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'superadmin'],
-    default: 'admin'
+    enum: ['superadmin', 'admin', 'manager', 'viewer'],
+    default: 'viewer'
   },
   lastLogin: {
     type: Date
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   },
   createdAt: {
     type: Date,
