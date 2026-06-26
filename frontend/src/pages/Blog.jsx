@@ -4,25 +4,36 @@ import { motion } from 'framer-motion';
 import { Calendar, User, Tag, ArrowRight, BookOpen, ChevronRight } from 'lucide-react';
 import { getBlogPosts } from '../services/api';
 
-const CATEGORIES = ['All', 'AI Insights', 'Case Studies', 'Best Practices', 'Company News'];
+// Define filter options mapping
+const CATEGORY_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'article', label: 'Articles' },
+  { value: 'blog', label: 'Blogs' },
+  { value: 'case-study', label: 'Case Studies' }
+];
 
+// Color mapping for each category
 const CATEGORY_COLORS = {
-  'AI Insights': '#6366f1',
-  'Case Studies': '#06b6d4',
-  'Best Practices': '#10b981',
-  'Company News': '#f59e0b',
+  article: '#6366f1',   // indigo
+  blog: '#06b6d4',      // cyan
+  'case-study': '#10b981' // emerald
 };
 
 const Blog = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const res = await getBlogPosts(1);
-        if (res.data.success && res.data.data.length) {
+        // Pass category filter to backend if not 'all'
+        const params = {};
+        if (activeCategory !== 'all') {
+          params.category = activeCategory;
+        }
+        const res = await getBlogPosts(params);
+        if (res.data.success && res.data.data) {
           setPosts(res.data.data);
         } else {
           setPosts([]);
@@ -34,18 +45,15 @@ const Blog = () => {
       }
     };
     fetchPosts();
-  }, []);
+  }, [activeCategory]); // Re-fetch when category changes
 
-  const filtered = activeCategory === 'All'
-    ? posts
-    : posts.filter(p => p.category === activeCategory);
-
-  const featured = filtered[0];
-  const remaining = filtered.slice(1);
+  // Featured post is the first one, rest in grid
+  const featured = posts[0];
+  const remaining = posts.slice(1);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#030712]">
         <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -81,17 +89,17 @@ const Blog = () => {
       {/* Category Filter */}
       <div className="border-b border-indigo-500/10">
         <div className="container mx-auto px-4 py-8 flex flex-wrap justify-center gap-3">
-          {CATEGORIES.map(cat => (
+          {CATEGORY_FILTERS.map(({ value, label }) => (
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
+              key={value}
+              onClick={() => setActiveCategory(value)}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                activeCategory === cat
+                activeCategory === value
                   ? 'bg-gradient-to-r from-indigo-600 to-cyan-500 text-white shadow-lg'
                   : 'bg-white/5 border border-indigo-500/20 text-slate-300 hover:bg-white/10'
               }`}
             >
-              {cat}
+              {label}
             </button>
           ))}
         </div>
@@ -99,8 +107,10 @@ const Blog = () => {
 
       {/* Blog Posts */}
       <section className="container mx-auto px-4 py-16 pb-32">
-        {filtered.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">No articles in this category yet.</div>
+        {posts.length === 0 ? (
+          <div className="text-center py-20 text-slate-500">
+            No posts found in this category.
+          </div>
         ) : (
           <>
             {/* Featured Post */}
@@ -122,7 +132,7 @@ const Blog = () => {
                       color: CATEGORY_COLORS[featured.category] || '#a5b4fc',
                     }}
                   >
-                    {featured.category || 'AI Insights'}
+                    {featured.category === 'case-study' ? 'Case Study' : featured.category?.charAt(0).toUpperCase() + featured.category?.slice(1) || 'Article'}
                   </span>
                 </div>
                 <div className="p-8 md:p-10">
@@ -164,7 +174,8 @@ const Blog = () => {
                           color: CATEGORY_COLORS[post.category] || '#a5b4fc',
                         }}
                       >
-                        <Tag size={11} /> {post.category || 'AI Insights'}
+                        <Tag size={11} />
+                        {post.category === 'case-study' ? 'Case Study' : post.category?.charAt(0).toUpperCase() + post.category?.slice(1) || 'Article'}
                       </span>
                     </div>
                     <div className="p-5">

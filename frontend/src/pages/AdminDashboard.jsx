@@ -36,7 +36,7 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
-  uploadImage // NEW: import image upload function
+  uploadImage
 } from '../services/api';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -50,7 +50,6 @@ const AdminDashboard = () => {
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [selectedEnquiries, setSelectedEnquiries] = useState([]);
 
-  // Chart time range: 'day', 'month', 'year'
   const [chartRange, setChartRange] = useState('month');
 
   // --- Data State ---
@@ -63,9 +62,9 @@ const AdminDashboard = () => {
   const [editingBlog, setEditingBlog] = useState(null);
   const [blogForm, setBlogForm] = useState({
     title: '', excerpt: '', content: '', image: '',
-    author: 'AI Solutions Team', published: true, tags: []
+    author: 'AI Solutions Team', published: true, tags: [],
+    category: 'blog' 
   });
-  // NEW: Blog image upload state
   const [blogImageFile, setBlogImageFile] = useState(null);
   const [blogUploading, setBlogUploading] = useState(false);
 
@@ -73,7 +72,6 @@ const AdminDashboard = () => {
   const [galleryForm, setGalleryForm] = useState({
     title: '', image: '', category: 'event', description: '',
   });
-  // NEW: Gallery image upload state
   const [galleryImageFile, setGalleryImageFile] = useState(null);
   const [galleryUploading, setGalleryUploading] = useState(false);
 
@@ -81,20 +79,17 @@ const AdminDashboard = () => {
     email: '', phone: '', address: '', hours: '',
   });
 
-  // Event state
   const [events, setEvents] = useState([]);
   const [editingEvent, setEditingEvent] = useState(null);
   const [eventForm, setEventForm] = useState({
     title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true
   });
-  // NEW: Event image upload state
   const [eventImageFile, setEventImageFile] = useState(null);
   const [eventUploading, setEventUploading] = useState(false);
 
   const [selectedEventRegistrations, setSelectedEventRegistrations] = useState(null);
   const [allRegistrations, setAllRegistrations] = useState([]);
 
-  // Chat History state
   const [chatHistories, setChatHistories] = useState([]);
   const [chatFilterSession, setChatFilterSession] = useState('');
   const [chatSessions, setChatSessions] = useState([]);
@@ -102,7 +97,6 @@ const AdminDashboard = () => {
   const [chatTotalPages, setChatTotalPages] = useState(1);
   const [expandedSession, setExpandedSession] = useState(null);
 
-  // User Management State
   const [adminUsers, setAdminUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [userForm, setUserForm] = useState({
@@ -208,7 +202,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ===== NEW: Image Upload Handlers =====
+  // ===== Image Upload Handlers =====
   const handleBlogImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -310,7 +304,7 @@ const AdminDashboard = () => {
     exportToCSV(enquiries, `all_enquiries_${new Date().toISOString().slice(0,19)}.csv`);
   };
 
-  // --- Initial data load for overview and all tabs ---
+  // --- Initial data load ---
   useEffect(() => {
     const loadAllData = async () => {
       await Promise.all([
@@ -326,14 +320,12 @@ const AdminDashboard = () => {
     loadAllData();
   }, []);
 
-  // Re-fetch enquiries when filter/search changes
   useEffect(() => {
     if (activeTab === 'enquiries' || activeTab === 'overview') {
       fetchEnquiries();
     }
   }, [enquiryFilter, enquirySearch, activeTab]);
 
-  // Fetch chat histories when tab becomes active or filters/page change
   useEffect(() => {
     if (activeTab === 'chat-history') {
       fetchChatHistories();
@@ -405,21 +397,26 @@ const AdminDashboard = () => {
       if (editingBlog) await updateBlogPost(editingBlog._id, blogForm);
       else await createBlogPost(blogForm);
       alert(editingBlog ? 'Blog updated!' : 'Blog published!');
-      setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] });
+      setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [], category: 'blog' });
       setBlogImageFile(null);
       setEditingBlog(null);
       await fetchBlogs();
     } catch (err) { alert('Failed to save blog post'); }
   };
-  const handleEditBlog = (post) => {
-    setEditingBlog(post);
-    setBlogForm({
-      title: post.title, excerpt: post.excerpt, content: post.content,
-      image: post.image, author: post.author, published: post.published,
-      tags: post.tags || []
-    });
-    setBlogImageFile(null);
-  };
+ const handleEditBlog = (post) => {
+  setEditingBlog(post);
+  setBlogForm({
+    title: post.title,
+    excerpt: post.excerpt,
+    content: post.content,
+    image: post.image,
+    author: post.author,
+    published: post.published,
+    tags: post.tags || [],
+    category: post.category || 'blog'  // ensure fallback
+  });
+  setBlogImageFile(null);
+};
   const handleDeleteBlog = async (id) => {
     if (window.confirm('Delete this blog post?')) {
       try { await deleteBlogPost(id); await fetchBlogs(); }
@@ -646,7 +643,14 @@ const AdminDashboard = () => {
     { id: 'contact', label: 'Contact Info', icon: Phone },
   ];
 
-  const getBlogCategory = (post) => (post.tags && post.tags[0]) || 'Article';
+  const getBlogCategory = (post) => {
+    const catMap = {
+      'article': 'Article',
+      'blog': 'Blog',
+      'case-study': 'Case Study'
+    };
+    return catMap[post.category] || 'Blog';
+  };
   const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
   const formatDateTime = (dateStr) => new Date(dateStr).toLocaleString();
 
@@ -731,7 +735,6 @@ const AdminDashboard = () => {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
-              {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white border border-gray-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Total Enquiries</p>
@@ -755,7 +758,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Analytics Section: Bar Chart (Left) + Line Chart (Right) */}
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div>
@@ -781,10 +783,7 @@ const AdminDashboard = () => {
                     ))}
                   </div>
                 </div>
-
-                {/* Two-column layout: Bar Chart | Line Chart */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Bar Chart */}
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 text-center">Bar Chart</h4>
                     <ResponsiveContainer width="100%" height={300}>
@@ -810,8 +809,6 @@ const AdminDashboard = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* Line Chart */}
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 text-center">Trend Line</h4>
                     <ResponsiveContainer width="100%" height={300}>
@@ -858,7 +855,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Recent Enquiries & Pending Reviews */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-white border border-gray-200">
                   <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -1066,7 +1062,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Blog Tab */}
+          {/* Blog Tab - with Category Dropdown */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6"><h2 className="text-2xl font-bold text-gray-900">Blog Management</h2><p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p></div>
@@ -1077,7 +1073,22 @@ const AdminDashboard = () => {
                   <input type="text" placeholder="Excerpt *" value={blogForm.excerpt} onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
                   <textarea placeholder="Content *" rows="6" value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
 
-                  {/* NEW: Image Upload with File Input */}
+                  {/* Category Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                    <select
+                      value={blogForm.category}
+                      onChange={(e) => setBlogForm({...blogForm, category: e.target.value})}
+                      required
+                      className="w-full border border-gray-200 rounded px-4 py-2 bg-white"
+                    >
+                      <option value="article">Article</option>
+                      <option value="blog">Blog</option>
+                      <option value="case-study">Case Study</option>
+                    </select>
+                  </div>
+
+                  {/* Image Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
                     <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
@@ -1096,15 +1107,28 @@ const AdminDashboard = () => {
                   <input type="text" placeholder="Author" value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <input type="text" placeholder="Tags (comma separated)" value={blogForm.tags.join(', ')} onChange={(e) => setBlogForm({...blogForm, tags: e.target.value.split(',').map(t => t.trim())})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={blogForm.published} onChange={(e) => setBlogForm({...blogForm, published: e.target.checked})} /> Published (visible on website)</label>
-                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>{editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] }); setBlogImageFile(null); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}</div>
+                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>{editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [], category: 'blog' }); setBlogImageFile(null); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}</div>
                 </form>
               </div>
               <div className="space-y-4">
                 {blogPosts.map(post => (
                   <div key={post._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition">
                     <div className="flex justify-between items-start flex-wrap gap-4">
-                      <div className="flex-1"><div className="flex items-center gap-2 flex-wrap mb-2"><span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{getBlogCategory(post)}</span>{post.published ? <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Published</span> : <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">Draft</span>}</div><h3 className="text-xl font-bold text-gray-900 mb-1">{post.title}</h3><p className="text-gray-600 text-sm mb-3">{post.excerpt}</p><div className="flex items-center gap-3 text-xs text-gray-400"><span>{post.author}</span><span>·</span><span>{formatDate(post.createdAt)}</span></div></div>
-                      <div className="flex gap-2"><button onClick={() => handleEditBlog(post)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-gray-50"><Edit className="w-3.5 h-3.5" /> Edit</button><button onClick={() => handleDeleteBlog(post._id)} className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button></div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                            {getBlogCategory(post)}
+                          </span>
+                          {post.published ? <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Published</span> : <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">Draft</span>}
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">{post.title}</h3>
+                        <p className="text-gray-600 text-sm mb-3">{post.excerpt}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-400"><span>{post.author}</span><span>·</span><span>{formatDate(post.createdAt)}</span></div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditBlog(post)} className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-gray-50"><Edit className="w-3.5 h-3.5" /> Edit</button>
+                        <button onClick={() => handleDeleteBlog(post._id)} className="border border-red-200 text-red-600 px-3 py-1.5 rounded text-sm flex items-center gap-1 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1125,7 +1149,6 @@ const AdminDashboard = () => {
                   <div className="grid grid-cols-2 gap-4"><input type="date" value={eventForm.date.split('T')[0]} onChange={e => setEventForm({...eventForm, date: e.target.value})} required className="border rounded p-2" /><input type="text" placeholder="Time (e.g., 10:00 – 18:00 BST)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required className="border rounded p-2" /></div>
                   <input type="text" placeholder="Location *" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} required className="w-full border rounded p-2" />
 
-                  {/* NEW: Image Upload with File Input */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
                     <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
@@ -1169,7 +1192,6 @@ const AdminDashboard = () => {
             <div>
               <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
                 
-                {/* NEW: Image Upload with File Input */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
                   <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">

@@ -18,7 +18,17 @@ API.interceptors.request.use((config) => {
 export const submitEnquiry = (data) => API.post('/enquiries', data);
 export const getApprovedReviews = () => API.get('/reviews');
 export const submitReview = (data) => API.post('/reviews', data);
-export const getBlogPosts = (page = 1) => API.get(`/blog?page=${page}&limit=6`);
+
+// Updated: getBlogPosts accepts params object with page, limit, category
+export const getBlogPosts = (params = {}) => {
+  const { page = 1, limit = 6, category } = params;
+  let query = `page=${page}&limit=${limit}`;
+  if (category && category !== 'all') {
+    query += `&category=${category}`;
+  }
+  return API.get(`/blog?${query}`);
+};
+
 export const getBlogPostBySlug = (slug) => API.get(`/blog/${slug}`);
 export const getGalleryItems = () => API.get('/gallery');
 export const getContactDetails = () => API.get('/contact');
@@ -68,6 +78,7 @@ export const createAdminUser = (data) => API.post('/admin/users', data);
 export const updateAdminUser = (id, data) => API.put(`/admin/users/${id}`, data);
 export const deleteAdminUser = (id) => API.delete(`/admin/users/${id}`);
 
+// Image upload 
 export const uploadImage = (file) => {
   const formData = new FormData();
   formData.append('image', file);

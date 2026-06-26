@@ -1,7 +1,25 @@
 const BlogPost = require('../models/BlogPost');
 const slugify = require('slugify');
 
-// Helper function to generate unique slug
+// Valid category values
+const VALID_CATEGORIES = ['article', 'blog', 'case-study'];
+
+// Normalize category
+const normalizeCategory = (category) => {
+  if (!category) return 'blog';
+  const trimmed = category.trim().toLowerCase();
+  if (VALID_CATEGORIES.includes(trimmed)) return trimmed;
+  // Map old values
+  const map = {
+    'ai insights': 'blog',
+    'case studies': 'case-study',
+    'best practices': 'article',
+    'company news': 'blog'
+  };
+  return map[trimmed] || 'blog';
+};
+
+// Generate unique slug
 const generateUniqueSlug = async (title, excludeId = null) => {
   let baseSlug = slugify(title, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
   let slug = baseSlug;
@@ -14,16 +32,21 @@ const generateUniqueSlug = async (title, excludeId = null) => {
   return slug;
 };
 
-// Public: Get published blog posts
+// ========== PUBLIC ==========
+
 const getPublishedPosts = async (req, res) => {
   try {
-    const { page = 1, limit = 6 } = req.query;
+    const { page = 1, limit = 6, category } = req.query;
+    const filter = { published: true };
+    if (category && category !== 'all') {
+      filter.category = normalizeCategory(category);
+    }
     const skip = (page - 1) * limit;
-    const posts = await BlogPost.find({ published: true })
+    const posts = await BlogPost.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-    const total = await BlogPost.countDocuments({ published: true });
+    const total = await BlogPost.countDocuments(filter);
     res.json({
       success: true,
       data: posts,
@@ -32,33 +55,38 @@ const getPublishedPosts = async (req, res) => {
       pages: Math.ceil(total / limit)
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getPublishedPosts error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch posts' });
   }
 };
 
-// Public: Get single blog post by slug
 const getPostBySlug = async (req, res) => {
   try {
-    const post = await BlogPost.findOne({ slug: req.params.slug, published: true });
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    post.views += 1;
-    await post.save();
+    const { slug } = req.params;
+    // Use findOneAndUpdate to increment views atomically and avoid pre-save hook
+    const post = await BlogPost.findOneAndUpdate(
+      { slug, published: true },
+      { $inc: { views: 1 } },
+      { returnDocument: 'after' } // returns the updated document
+    );
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
     res.json({ success: true, data: post });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getPostBySlug error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// Admin: Create new post
+// ========== ADMIN ==========
+
 const createPost = async (req, res) => {
   try {
-    const { title, content, excerpt, image, author, tags, published } = req.body;
-
-    // Validate required fields
+    const { title, content, excerpt, image, author, tags, published, category } = req.body;
     if (!title || !content || !excerpt) {
-      return res.status(400).json({ message: 'Title, content, and excerpt are required' });
+      return res.status(400).json({ success: false, message: 'Title, content, and excerpt are required' });
     }
-
     const slug = await generateUniqueSlug(title);
     const post = await BlogPost.create({
       title,
@@ -68,50 +96,70 @@ const createPost = async (req, res) => {
       image: image || 'https://via.placeholder.com/800x400?text=AI+Solutions',
       author: author || 'AI Solutions Team',
       tags: tags || [],
-      published: published !== undefined ? published : true
+      published: published !== undefined ? published : true,
+      category: normalizeCategory(category)
     });
     res.status(201).json({ success: true, data: post });
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ message: error.message });
+    console.error('createPost error:', error);
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// Admin: Update post
 const updatePost = async (req, res) => {
   try {
-    const { title, ...updateData } = req.body;
+    const { title, category, ...otherData } = req.body;
+    const updateData = { ...otherData };
     if (title) {
       updateData.slug = await generateUniqueSlug(title, req.params.id);
       updateData.title = title;
     }
-    const post = await BlogPost.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    // Handle category
+    if (category !== undefined) {
+      updateData.category = normalizeCategory(category);
+    } else {
+      const existing = await BlogPost.findById(req.params.id);
+      if (existing) {
+        updateData.category = normalizeCategory(existing.category);
+      } else {
+        updateData.category = 'blog';
+      }
+    }
+    const post = await BlogPost.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { returnDocument: 'after', runValidators: true }
+    );
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
     res.json({ success: true, data: post });
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ message: error.message });
+    console.error('updatePost error:', error);
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// Admin: Delete post
 const deletePost = async (req, res) => {
   try {
     const post = await BlogPost.findByIdAndDelete(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
     res.json({ success: true, message: 'Post deleted' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('deletePost error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// Admin: Get all posts (including unpublished)
 const getAllBlogsAdmin = async (req, res) => {
   try {
     const posts = await BlogPost.find().sort({ createdAt: -1 });
     res.json({ success: true, data: posts });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getAllBlogsAdmin error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

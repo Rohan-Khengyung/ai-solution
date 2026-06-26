@@ -4,6 +4,17 @@ import { motion } from 'framer-motion';
 import { Calendar, User, ArrowLeft, Heart, Bookmark, Share2, Clock, Tag } from 'lucide-react';
 import { getBlogPostBySlug } from '../services/api';
 
+// Helper to format category
+const formatCategory = (category) => {
+  if (!category) return '';
+  const map = {
+    'article': 'Article',
+    'blog': 'Blog',
+    'case-study': 'Case Study'
+  };
+  return map[category] || category;
+};
+
 const BlogPost = () => {
   const { slug } = useParams();
   const [post, setPost] = useState(null);
@@ -14,21 +25,41 @@ const BlogPost = () => {
   useEffect(() => {
     const fetchPost = async () => {
       try {
+        setLoading(true);
         const res = await getBlogPostBySlug(slug);
         if (res.data.success && res.data.data) {
           setPost(res.data.data);
+          setError(null);
         } else {
-          setError('Post not found');
+          setError(res.data.message || 'Post not found');
         }
       } catch (err) {
-        console.error(err);
-        setError('Failed to load blog post');
+        console.error('Full error:', err);
+        // Check if it's a 404 or other status
+        if (err.response) {
+          // The request was made and the server responded with a status code
+          if (err.response.status === 404) {
+            setError('The article you are looking for does not exist.');
+          } else if (err.response.status === 500) {
+            setError('Server error. Please try again later.');
+          } else {
+            setError(err.response.data?.message || 'Failed to load blog post.');
+          }
+        } else if (err.request) {
+          // The request was made but no response was received
+          setError('No response from server. Please check your connection.');
+        } else {
+          setError('Something went wrong. Please try again.');
+        }
+        setPost(null);
       } finally {
         setLoading(false);
         window.scrollTo(0, 0);
       }
     };
-    fetchPost();
+    if (slug) {
+      fetchPost();
+    }
   }, [slug]);
 
   const readingTime = (content) => {
@@ -49,7 +80,7 @@ const BlogPost = () => {
       <div className="min-h-screen flex items-center justify-center bg-[#030712] px-4">
         <div className="text-center max-w-md bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
           <h2 className="text-2xl font-bold text-white mb-2">Post Not Found</h2>
-          <p className="text-gray-400 mb-6">The article you're looking for doesn't exist.</p>
+          <p className="text-gray-400 mb-6">{error || 'The article you are looking for does not exist.'}</p>
           <Link to="/blog" className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white px-5 py-2 rounded-lg">
             <ArrowLeft size={18} /> Back to Blog
           </Link>
@@ -75,7 +106,9 @@ const BlogPost = () => {
             <span className="flex items-center gap-1"><Calendar size={14} />{new Date(post.createdAt).toLocaleDateString()}</span>
             <span className="flex items-center gap-1"><Clock size={14} />{readingTime(post.content)} min read</span>
             {post.category && (
-              <span className="flex items-center gap-1"><Tag size={14} />{post.category}</span>
+              <span className="flex items-center gap-1 bg-indigo-500/20 px-3 py-1 rounded-full text-indigo-300 text-xs">
+                <Tag size={14} />{formatCategory(post.category)}
+              </span>
             )}
           </div>
         </div>
@@ -97,7 +130,7 @@ const BlogPost = () => {
               <button className="p-2 rounded-full hover:bg-white/10 transition"><Share2 size={20} className="text-slate-400" /></button>
             </div>
 
-            {/* Content - HTML support with explicit white text */}
+            {/* Content */}
             <div
               className="prose prose-invert prose-lg max-w-none text-white [&_p]:text-white [&_li]:text-white [&_span]:text-white [&_div]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-white [&_strong]:text-white [&_em]:text-white [&_a]:text-indigo-400 [&_a]:hover:text-indigo-300 [&_ul]:text-white [&_ol]:text-white"
               dangerouslySetInnerHTML={{ __html: post.content }}
