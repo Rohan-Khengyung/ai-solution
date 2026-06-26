@@ -5,8 +5,7 @@ const adminSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    trim: true,
-    minlength: 3
+    trim: true
   },
   email: {
     type: String,
@@ -15,21 +14,24 @@ const adminSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  // NEW: recipient email for notifications, can be different from login email
+  recipientEmail: {
+    type: String,
+    lowercase: true,
+    trim: true,
+    default: null
+  },
   password: {
     type: String,
     required: true
   },
   role: {
     type: String,
-    enum: ['superadmin', 'admin', 'manager', 'viewer'],
+    enum: ['viewer', 'manager', 'admin', 'superadmin'],
     default: 'viewer'
   },
   lastLogin: {
     type: Date
-  },
-  isActive: {
-    type: Boolean,
-    default: true
   },
   createdAt: {
     type: Date,

@@ -78,6 +78,9 @@ export const createAdminUser = (data) => API.post('/admin/users', data);
 export const updateAdminUser = (id, data) => API.put(`/admin/users/${id}`, data);
 export const deleteAdminUser = (id) => API.delete(`/admin/users/${id}`);
 
+// EMAIL 
+export const sendCustomEmail = (data) => API.post('/admin/send-email', data);
+
 // Image upload 
 export const uploadImage = (file) => {
   const formData = new FormData();

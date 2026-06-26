@@ -11,6 +11,7 @@ const { deleteRegistration } = require('../controllers/eventRegistrationControll
 const eventController = require('../controllers/eventController');
 const { getChatHistories } = require('../controllers/chatController');
 const { getUsers, createUser, updateUser, deleteUser } = require('../controllers/adminUserController');
+const { sendCustomEmail } = require('../controllers/emailController');
 
 // Auth
 router.post('/login', loginAdmin);
@@ -59,5 +60,9 @@ router.get('/users', protect, getUsers);
 router.post('/users', protect, createUser);
 router.put('/users/:id', protect, updateUser);
 router.delete('/users/:id', protect, deleteUser);
+
+
+// Email
+router.post('/send-email', protect, sendCustomEmail);
 
 module.exports = router;

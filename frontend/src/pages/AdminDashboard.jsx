@@ -36,9 +36,10 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
-  uploadImage
+  uploadImage,
+  sendCustomEmail
 } from '../services/api';
-import * as XLSX from 'xlsx'; // NEW: Excel export library
+import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, Cell, LineChart, Line, Area, ComposedChart
@@ -101,11 +102,20 @@ const AdminDashboard = () => {
   const [adminUsers, setAdminUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [userForm, setUserForm] = useState({
-    username: '', email: '', password: '', role: 'viewer'
+    username: '',
+    email: '',          // login email
+    recipientEmail: '', // recipient email (TO)
+    password: '',
+    role: 'viewer'
   });
   const [showUserModal, setShowUserModal] = useState(false);
 
-  // NEW: Export format state
+  // Email Modal state
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailData, setEmailData] = useState({ to: '', subject: '', message: '' });
+  const [emailSending, setEmailSending] = useState(false);
+
+  // Export format state
   const [exportFormat, setExportFormat] = useState('csv');
 
   // --- Fetch functions (unchanged) ---
@@ -261,7 +271,39 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- Updated Export functions (CSV + Excel) ---
+  // --- Email modal handlers ---
+  const openEmailModal = (user) => {
+    setEmailData({ to: user.email, subject: 'Message from AI Solutions', message: '' });
+    setEmailModalOpen(true);
+  };
+
+  const openReplyEmailModal = (email, name, jobDetails) => {
+    const subject = `Reply to your enquiry - AI Solutions`;
+    const message = `Dear ${name},\n\nThank you for your enquiry. We will get back to you shortly.\n\nYour enquiry details:\n${jobDetails}\n\nBest regards,\nAI Solutions Team`;
+    setEmailData({ to: email, subject, message });
+    setEmailModalOpen(true);
+  };
+
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    if (!emailData.to || !emailData.subject || !emailData.message) {
+      alert('All fields are required');
+      return;
+    }
+    setEmailSending(true);
+    try {
+      await sendCustomEmail(emailData);
+      alert('Email sent successfully!');
+      setEmailModalOpen(false);
+      setEmailData({ to: '', subject: '', message: '' });
+    } catch (err) {
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  // --- Export functions (CSV + Excel) ---
   const exportData = (dataToExport, format, filename = 'enquiries') => {
     if (!dataToExport.length) {
       alert('No data to export');
@@ -494,35 +536,27 @@ const AdminDashboard = () => {
     }
   };
 
-  // Reply via email
-  const handleReplyEmail = (email, name, jobDetails) => {
-    const subject = `Reply to your enquiry - AI Solutions`;
-    const body = `Dear ${name},\n\nThank you for your enquiry. We will get back to you shortly.\n\nYour enquiry details:\n${jobDetails}\n\nBest regards,\nAI Solutions Team`;
-    window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-  // --- User Management Handlers ---
+  // --- User Management Handlers (updated to include recipientEmail) ---
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = { ...userForm };
+      // If recipientEmail is empty, use the login email
+      if (!payload.recipientEmail) {
+        payload.recipientEmail = payload.email;
+      }
       if (editingUser) {
-        const payload = { ...userForm };
+        // remove password if empty
         if (!payload.password) delete payload.password;
         await updateAdminUser(editingUser._id, payload);
-        alert('User updated successfully');
+        alert('User updated successfully. A notification email has been sent.');
       } else {
-        const res = await createAdminUser(userForm);
-        const email = res.data.data.email;
-        const username = res.data.data.username;
-        const password = userForm.password;
-        const subject = 'Your AI Solutions Admin Account';
-        const body = `Hello ${username},\n\nAn admin account has been created for you at AI Solutions.\n\nUsername: ${username}\nPassword: ${password}\n\nPlease login at: ${window.location.origin}/admin\n\nYou can change your password after login.\n\nBest regards,\nAI Solutions Team`;
-        window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        alert('User created. Email client opened to send credentials.');
+        await createAdminUser(payload);
+        alert('User created successfully. A welcome email has been sent to the recipient.');
       }
       setShowUserModal(false);
       setEditingUser(null);
-      setUserForm({ username: '', email: '', password: '', role: 'viewer' });
+      setUserForm({ username: '', email: '', recipientEmail: '', password: '', role: 'viewer' });
       fetchAdminUsers();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to save user');
@@ -534,6 +568,7 @@ const AdminDashboard = () => {
     setUserForm({
       username: user.username,
       email: user.email,
+      recipientEmail: user.recipientEmail || user.email, // fallback
       password: '',
       role: user.role,
     });
@@ -544,7 +579,7 @@ const AdminDashboard = () => {
     if (window.confirm('Delete this admin user? This action cannot be undone.')) {
       try {
         await deleteAdminUser(id);
-        alert('User deleted');
+        alert('User deleted. A notification email has been sent.');
         fetchAdminUsers();
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to delete user');
@@ -687,7 +722,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+      {/* Sidebar - unchanged */}
       {sidebarOpen && (
         <aside className="w-56 bg-gray-900 flex flex-col flex-shrink-0">
           <div className="px-5 py-5 border-b border-gray-700">
@@ -750,7 +785,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* Overview Tab */}
+          {/* Overview Tab - unchanged */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -922,7 +957,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Enquiries Tab - Updated with Excel export */}
+          {/* Enquiries Tab - unchanged */}
           {activeTab === 'enquiries' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
@@ -933,7 +968,6 @@ const AdminDashboard = () => {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3 items-center">
-                  {/* Format dropdown */}
                   <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
                     <FileType size={16} className="text-gray-500" />
                     <select
@@ -1015,7 +1049,7 @@ const AdminDashboard = () => {
                             {enq.status !== 'processed' && <button onClick={() => handleStatusChange(enq._id, 'processed')} className="text-green-600 hover:text-green-800 transition" title="Mark Processed"><Check className="w-4 h-4" /></button>}
                             {enq.status !== 'archived' && <button onClick={() => handleStatusChange(enq._id, 'archived')} className="text-gray-600 hover:text-gray-800 transition" title="Archive"><Archive className="w-4 h-4" /></button>}
                             <button onClick={() => handleDeleteEnquiry(enq._id)} className="text-red-600 hover:text-red-800 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
-                            <button onClick={() => handleReplyEmail(enq.email, enq.name, enq.jobDetails)} className="text-blue-600 hover:text-blue-800 transition" title="Reply via Email"><Send className="w-4 h-4" /></button>
+                            <button onClick={() => openReplyEmailModal(enq.email, enq.name, enq.jobDetails)} className="text-blue-600 hover:text-blue-800 transition" title="Reply via Email"><Send className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -1027,7 +1061,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Full-screen Enquiry Detail Modal */}
+          {/* Full-screen Enquiry Detail Modal - unchanged */}
           {selectedEnquiry && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -1049,14 +1083,14 @@ const AdminDashboard = () => {
                   <div><p className="text-xs font-bold uppercase text-gray-500 mb-2">Job / Project Details</p><div className="bg-gray-50 p-4 rounded-lg border border-gray-200"><p className="text-gray-800 whitespace-pre-wrap">{selectedEnquiry.jobDetails}</p></div></div>
                 </div>
                 <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3">
-                  <button onClick={() => handleReplyEmail(selectedEnquiry.email, selectedEnquiry.name, selectedEnquiry.jobDetails)} className="bg-[#0055FF] text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"><Send className="w-4 h-4" /> Reply via Email</button>
+                  <button onClick={() => openReplyEmailModal(selectedEnquiry.email, selectedEnquiry.name, selectedEnquiry.jobDetails)} className="bg-[#0055FF] text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"><Send className="w-4 h-4" /> Reply via Email</button>
                   <button onClick={() => setSelectedEnquiry(null)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">Close</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Reviews Tab (unchanged) */}
+          {/* Reviews Tab - unchanged */}
           {activeTab === 'reviews' && (
             <div>
               <div className="mb-6">
@@ -1092,7 +1126,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Blog Tab (unchanged) */}
+          {/* Blog Tab - unchanged */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6"><h2 className="text-2xl font-bold text-gray-900">Blog Management</h2><p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p></div>
@@ -1160,7 +1194,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Events Tab (unchanged) */}
+          {/* Events Tab - unchanged */}
           {activeTab === 'events' && (
             <div>
               <div className="mb-6 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-900">Event Management</h2><p className="text-sm text-gray-500 mt-1">{events.length} total events</p></div></div>
@@ -1208,7 +1242,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Gallery Tab (unchanged) */}
+          {/* Gallery Tab - unchanged */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
@@ -1234,7 +1268,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Chat History Tab (unchanged) */}
+          {/* Chat History Tab - unchanged */}
           {activeTab === 'chat-history' && (
             <div>
               <div className="mb-6">
@@ -1355,7 +1389,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* User Management Tab (unchanged) */}
+          {/* User Management Tab */}
           {activeTab === 'users' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
@@ -1364,7 +1398,7 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-500 mt-1">Manage admin accounts and permissions</p>
                 </div>
                 <button
-                  onClick={() => { setEditingUser(null); setUserForm({ username: '', email: '', password: '', role: 'viewer' }); setShowUserModal(true); }}
+                  onClick={() => { setEditingUser(null); setUserForm({ username: '', email: '', recipientEmail: '', password: '', role: 'viewer' }); setShowUserModal(true); }}
                   className="flex items-center gap-2 bg-[#0055FF] text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                 >
                   <UserPlus className="w-4 h-4" /> Add New User
@@ -1400,8 +1434,9 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex gap-2">
-                            <button onClick={() => handleEditUser(user)} className="text-blue-600 hover:text-blue-800 transition" title="Edit"><Edit className="w-4 h-4" /></button>
-                            <button onClick={() => handleDeleteUser(user._id)} className="text-red-600 hover:text-red-800 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleEditUser(user)} className="text-blue-600 hover:text-blue-800 transition" title="Edit"><Edit size={16} /></button>
+                            <button onClick={() => handleDeleteUser(user._id)} className="text-red-600 hover:text-red-800 transition" title="Delete"><Trash2 size={16} /></button>
+                            <button onClick={() => openEmailModal(user)} className="text-indigo-600 hover:text-indigo-800 transition" title="Send Email"><Mail size={16} /></button>
                           </div>
                         </td>
                       </tr>
@@ -1418,14 +1453,14 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Contact Info Tab (unchanged) */}
+          {/* Contact Info Tab - unchanged */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl"><h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2><form onSubmit={handleContactUpdate} className="space-y-4"><input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button></form></div>
           )}
         </main>
       </div>
 
-      {/* User Modal (unchanged) */}
+      {/* User Modal (Add/Edit) - Updated with two email fields */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -1433,18 +1468,33 @@ const AdminDashboard = () => {
               <h2 className="text-xl font-bold text-gray-900">{editingUser ? 'Edit User' : 'Add New User'}</h2>
               <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="p-1 hover:bg-gray-100 rounded"><X className="w-6 h-6 text-gray-500" /></button>
             </div>
+
             <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Recipient Email (TO) *</label>
+                <input
+                  type="email"
+                  required
+                  value={userForm.recipientEmail}
+                  onChange={(e) => setUserForm({...userForm, recipientEmail: e.target.value})}
+                  className="w-full border p-2 rounded"
+                  placeholder="Where credentials will be sent"
+                />
+                <p className="text-xs text-gray-400 mt-1">Credentials will be sent to this email address.</p>
+              </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Username *</label>
                 <input type="text" required value={userForm.username} onChange={(e) => setUserForm({...userForm, username: e.target.value})} className="w-full border p-2 rounded" />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email *</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Login Email (company) *</label>
                 <input type="email" required value={userForm.email} onChange={(e) => setUserForm({...userForm, email: e.target.value})} className="w-full border p-2 rounded" />
+                <p className="text-xs text-gray-400 mt-1">This email is used for login to the admin panel.</p>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">{editingUser ? 'New Password (leave blank to keep current)' : 'Password *'}</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Password *</label>
                 <input type="password" required={!editingUser} value={userForm.password} onChange={(e) => setUserForm({...userForm, password: e.target.value})} className="w-full border p-2 rounded" />
+                {editingUser && <p className="text-xs text-gray-400 mt-1">Leave blank to keep current password.</p>}
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Role</label>
@@ -1458,6 +1508,61 @@ const AdminDashboard = () => {
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded hover:bg-blue-700">{editingUser ? 'Update' : 'Create'}</button>
                 <button type="button" onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Email Compose Modal */}
+      {emailModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Send Email</h2>
+              <button onClick={() => setEmailModalOpen(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            <form onSubmit={handleSendEmail} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">TO</label>
+                <input
+                  type="email"
+                  value={emailData.to}
+                  onChange={(e) => setEmailData({ ...emailData, to: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-4 py-2 bg-gray-50"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={emailData.subject}
+                  onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-4 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Message</label>
+                <textarea
+                  rows="5"
+                  value={emailData.message}
+                  onChange={(e) => setEmailData({ ...emailData, message: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-4 py-2"
+                  required
+                />
+                <p className="text-xs text-gray-400 mt-1">This email will be sent from the configured system email.</p>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" onClick={() => setEmailModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition">
+                  Cancel
+                </button>
+                <button type="submit" disabled={emailSending} className="px-6 py-2 bg-[#0055FF] text-white rounded hover:bg-blue-700 transition disabled:opacity-50">
+                  {emailSending ? 'Sending...' : 'Send Email'}
+                </button>
               </div>
             </form>
           </div>
