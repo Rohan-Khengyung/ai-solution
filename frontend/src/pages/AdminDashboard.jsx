@@ -36,7 +36,10 @@ import {
   updateAdminUser,
   deleteAdminUser,
 } from '../services/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+  ResponsiveContainer, Cell, LineChart, Line, Area, ComposedChart
+} from 'recharts';
 
 const AdminDashboard = () => {
   const { logout } = useAuth();
@@ -83,9 +86,9 @@ const AdminDashboard = () => {
   const [chatSessions, setChatSessions] = useState([]);
   const [chatPage, setChatPage] = useState(1);
   const [chatTotalPages, setChatTotalPages] = useState(1);
-  const [expandedSession, setExpandedSession] = useState(null); // Track which session is expanded
+  const [expandedSession, setExpandedSession] = useState(null);
 
-  // --- User Management State ---
+  // User Management State
   const [adminUsers, setAdminUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [userForm, setUserForm] = useState({
@@ -248,7 +251,7 @@ const AdminDashboard = () => {
         fetchGallery(),
         fetchEvents(),
         fetchContact(),
-        fetchAdminUsers(), // load users on mount
+        fetchAdminUsers(),
       ]);
     };
     loadAllData();
@@ -265,7 +268,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (activeTab === 'chat-history') {
       fetchChatHistories();
-      // Reset expanded session when changing filter
       setExpandedSession(null);
     }
   }, [activeTab, chatFilterSession, chatPage]);
@@ -412,14 +414,12 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       if (editingUser) {
-        // For edit, we may send password only if provided
         const payload = { ...userForm };
-        if (!payload.password) delete payload.password; // don't send empty password
+        if (!payload.password) delete payload.password;
         await updateAdminUser(editingUser._id, payload);
         alert('User updated successfully');
       } else {
         const res = await createAdminUser(userForm);
-        // Send credentials via email using mailto
         const email = res.data.data.email;
         const username = res.data.data.username;
         const password = userForm.password;
@@ -442,7 +442,7 @@ const AdminDashboard = () => {
     setUserForm({
       username: user.username,
       email: user.email,
-      password: '', // blank for edit
+      password: '',
       role: user.role,
     });
     setShowUserModal(true);
@@ -527,6 +527,7 @@ const AdminDashboard = () => {
   };
 
   const chartData = getChartData();
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -556,7 +557,6 @@ const AdminDashboard = () => {
     return review.status === reviewFilter;
   });
 
-  // Navigation items – added 'users' after chat-history
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'enquiries', label: 'Enquiries', icon: Inbox, badge: newEnquiries },
@@ -565,7 +565,7 @@ const AdminDashboard = () => {
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'gallery', label: 'Gallery', icon: Image },
     { id: 'chat-history', label: 'Chat History', icon: MessageCircle },
-    { id: 'users', label: 'Users', icon: Users },   // <-- New User Management
+    { id: 'users', label: 'Users', icon: Users },
     { id: 'contact', label: 'Contact Info', icon: Phone },
   ];
 
@@ -573,7 +573,6 @@ const AdminDashboard = () => {
   const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
   const formatDateTime = (dateStr) => new Date(dateStr).toLocaleString();
 
-  // Group chat histories by session
   const groupBySession = (histories) => {
     const grouped = new Map();
     histories.forEach(chat => {
@@ -655,6 +654,7 @@ const AdminDashboard = () => {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
+              {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white border border-gray-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Total Enquiries</p>
@@ -678,7 +678,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Analytics Chart */}
+              {/* Analytics Section: Bar Chart (Left) + Line Chart (Right) */}
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div>
@@ -704,31 +704,81 @@ const AdminDashboard = () => {
                     ))}
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0055FF" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.6} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-                    <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} allowDecimals={false} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6' }} />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} formatter={() => <span className="text-sm text-gray-600">Number of Enquiries</span>} />
-                    <Bar dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                      {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill="url(#barGradient)" />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                {chartData.length === 0 && (
-                  <div className="text-center text-gray-400 py-12">
-                    <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>No enquiry data available to display chart.</p>
-                    <p className="text-xs mt-1">Submit enquiries to see analytics.</p>
+
+                {/* Two-column layout: Bar Chart | Line Chart */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Bar Chart */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4 text-center">Bar Chart</h4>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                        <defs>
+                          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#0055FF" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.6} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
+                        <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} allowDecimals={false} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6' }} />
+                        <Bar dataKey="count" fill="url(#barGradient)" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                          {chartData.map((entry, index) => <Cell key={`bar-cell-${index}`} fill="url(#barGradient)" />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    {chartData.length === 0 && (
+                      <div className="text-center text-gray-400 py-8">
+                        <p>No data available</p>
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Line Chart */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4 text-center">Trend Line</h4>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                        <defs>
+                          <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
+                        <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} allowDecimals={false} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#8B5CF6', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                        <Legend 
+                          wrapperStyle={{ paddingTop: '10px' }} 
+                          formatter={() => <span className="text-sm text-gray-600">Enquiries</span>}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="count" 
+                          stroke="#8B5CF6" 
+                          strokeWidth={2.5}
+                          fill="url(#lineGradient)"
+                          dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2, fill: 'white' }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="count" 
+                          stroke="#8B5CF6" 
+                          strokeWidth={2.5}
+                          dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2, fill: 'white' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    {chartData.length === 0 && (
+                      <div className="text-center text-gray-400 py-8">
+                        <p>No data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Recent Enquiries & Pending Reviews */}
@@ -1032,7 +1082,6 @@ const AdminDashboard = () => {
                     <option value="">All Sessions ({groupedChats.size} sessions)</option>
                     {chatSessions.map(session => {
                       const messageCount = groupedChats.get(session)?.length || 0;
-                      const lastMessage = groupedChats.get(session)?.[0]?.timestamp;
                       return (
                         <option key={session} value={session}>
                           {session.substring(0, 20)}... ({messageCount} messages)
@@ -1135,7 +1184,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* --- USER MANAGEMENT TAB (NEW) --- */}
+          {/* User Management Tab */}
           {activeTab === 'users' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
