@@ -5,7 +5,7 @@ import {
   Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
   Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive,
   Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown, UserPlus,
-  Upload
+  Upload, FileType
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -38,6 +38,7 @@ import {
   deleteAdminUser,
   uploadImage
 } from '../services/api';
+import * as XLSX from 'xlsx'; // NEW: Excel export library
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, Cell, LineChart, Line, Area, ComposedChart
@@ -63,7 +64,7 @@ const AdminDashboard = () => {
   const [blogForm, setBlogForm] = useState({
     title: '', excerpt: '', content: '', image: '',
     author: 'AI Solutions Team', published: true, tags: [],
-    category: 'blog' 
+    category: 'blog'
   });
   const [blogImageFile, setBlogImageFile] = useState(null);
   const [blogUploading, setBlogUploading] = useState(false);
@@ -104,7 +105,10 @@ const AdminDashboard = () => {
   });
   const [showUserModal, setShowUserModal] = useState(false);
 
-  // --- Fetch functions ---
+  // NEW: Export format state
+  const [exportFormat, setExportFormat] = useState('csv');
+
+  // --- Fetch functions (unchanged) ---
   const fetchEnquiries = async () => {
     try {
       const params = {};
@@ -257,8 +261,8 @@ const AdminDashboard = () => {
     }
   };
 
-  // CSV Export
-  const exportToCSV = (dataToExport, filename = 'enquiries.csv') => {
+  // --- Updated Export functions (CSV + Excel) ---
+  const exportData = (dataToExport, format, filename = 'enquiries') => {
     if (!dataToExport.length) {
       alert('No data to export');
       return;
@@ -275,16 +279,34 @@ const AdminDashboard = () => {
       enq.status,
       new Date(enq.createdAt).toLocaleDateString()
     ]);
-    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const data = [headers, ...rows];
+
+    if (format === 'csv') {
+      const csvContent = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.setAttribute('download', `${filename}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else { // Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Enquiries');
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.setAttribute('download', `${filename}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleExportSelected = () => {
@@ -293,7 +315,7 @@ const AdminDashboard = () => {
       return;
     }
     const selectedData = enquiries.filter(enq => selectedEnquiries.includes(enq._id));
-    exportToCSV(selectedData, `selected_enquiries_${new Date().toISOString().slice(0,19)}.csv`);
+    exportData(selectedData, exportFormat, `selected_enquiries_${new Date().toISOString().slice(0,19)}`);
   };
 
   const handleExportAll = () => {
@@ -301,7 +323,7 @@ const AdminDashboard = () => {
       alert('No enquiries to export');
       return;
     }
-    exportToCSV(enquiries, `all_enquiries_${new Date().toISOString().slice(0,19)}.csv`);
+    exportData(enquiries, exportFormat, `all_enquiries_${new Date().toISOString().slice(0,19)}`);
   };
 
   // --- Initial data load ---
@@ -403,20 +425,16 @@ const AdminDashboard = () => {
       await fetchBlogs();
     } catch (err) { alert('Failed to save blog post'); }
   };
- const handleEditBlog = (post) => {
-  setEditingBlog(post);
-  setBlogForm({
-    title: post.title,
-    excerpt: post.excerpt,
-    content: post.content,
-    image: post.image,
-    author: post.author,
-    published: post.published,
-    tags: post.tags || [],
-    category: post.category || 'blog'  // ensure fallback
-  });
-  setBlogImageFile(null);
-};
+  const handleEditBlog = (post) => {
+    setEditingBlog(post);
+    setBlogForm({
+      title: post.title, excerpt: post.excerpt, content: post.content,
+      image: post.image, author: post.author, published: post.published,
+      tags: post.tags || [],
+      category: post.category || 'blog'
+    });
+    setBlogImageFile(null);
+  };
   const handleDeleteBlog = async (id) => {
     if (window.confirm('Delete this blog post?')) {
       try { await deleteBlogPost(id); await fetchBlogs(); }
@@ -904,7 +922,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Enquiries Tab */}
+          {/* Enquiries Tab - Updated with Excel export */}
           {activeTab === 'enquiries' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
@@ -914,7 +932,19 @@ const AdminDashboard = () => {
                     {enquiries.length} total enquiries · {enquiries.filter(e => e.status === 'new').length} new · {enquiries.filter(e => e.status === 'processed').length} processed
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-3 items-center">
+                  {/* Format dropdown */}
+                  <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                    <FileType size={16} className="text-gray-500" />
+                    <select
+                      value={exportFormat}
+                      onChange={(e) => setExportFormat(e.target.value)}
+                      className="bg-transparent border-none outline-none text-sm font-medium text-gray-700 cursor-pointer"
+                    >
+                      <option value="csv">CSV</option>
+                      <option value="excel">Excel</option>
+                    </select>
+                  </div>
                   <button onClick={handleExportSelected} disabled={selectedEnquiries.length === 0} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${selectedEnquiries.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}>
                     <Download className="w-4 h-4" /> Export Selected
                   </button>
@@ -1026,7 +1056,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Reviews Tab */}
+          {/* Reviews Tab (unchanged) */}
           {activeTab === 'reviews' && (
             <div>
               <div className="mb-6">
@@ -1062,7 +1092,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Blog Tab - with Category Dropdown */}
+          {/* Blog Tab (unchanged) */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6"><h2 className="text-2xl font-bold text-gray-900">Blog Management</h2><p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p></div>
@@ -1072,8 +1102,6 @@ const AdminDashboard = () => {
                   <input type="text" placeholder="Title *" value={blogForm.title} onChange={(e) => setBlogForm({...blogForm, title: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
                   <input type="text" placeholder="Excerpt *" value={blogForm.excerpt} onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
                   <textarea placeholder="Content *" rows="6" value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
-
-                  {/* Category Dropdown */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
                     <select
@@ -1087,8 +1115,6 @@ const AdminDashboard = () => {
                       <option value="case-study">Case Study</option>
                     </select>
                   </div>
-
-                  {/* Image Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
                     <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
@@ -1103,7 +1129,6 @@ const AdminDashboard = () => {
                       </div>
                     )}
                   </div>
-
                   <input type="text" placeholder="Author" value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <input type="text" placeholder="Tags (comma separated)" value={blogForm.tags.join(', ')} onChange={(e) => setBlogForm({...blogForm, tags: e.target.value.split(',').map(t => t.trim())})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={blogForm.published} onChange={(e) => setBlogForm({...blogForm, published: e.target.checked})} /> Published (visible on website)</label>
@@ -1116,9 +1141,7 @@ const AdminDashboard = () => {
                     <div className="flex justify-between items-start flex-wrap gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                            {getBlogCategory(post)}
-                          </span>
+                          <span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{getBlogCategory(post)}</span>
                           {post.published ? <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Published</span> : <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">Draft</span>}
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-1">{post.title}</h3>
@@ -1137,7 +1160,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Events Tab */}
+          {/* Events Tab (unchanged) */}
           {activeTab === 'events' && (
             <div>
               <div className="mb-6 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-900">Event Management</h2><p className="text-sm text-gray-500 mt-1">{events.length} total events</p></div></div>
@@ -1148,7 +1171,6 @@ const AdminDashboard = () => {
                   <textarea placeholder="Description *" rows="3" value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} required className="w-full border rounded p-2" />
                   <div className="grid grid-cols-2 gap-4"><input type="date" value={eventForm.date.split('T')[0]} onChange={e => setEventForm({...eventForm, date: e.target.value})} required className="border rounded p-2" /><input type="text" placeholder="Time (e.g., 10:00 – 18:00 BST)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required className="border rounded p-2" /></div>
                   <input type="text" placeholder="Location *" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} required className="w-full border rounded p-2" />
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
                     <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
@@ -1163,7 +1185,6 @@ const AdminDashboard = () => {
                       </div>
                     )}
                   </div>
-
                   <input type="number" placeholder="Capacity *" min="1" value={eventForm.capacity} onChange={e => setEventForm({...eventForm, capacity: parseInt(e.target.value)})} required className="w-full border rounded p-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={eventForm.isActive} onChange={e => setEventForm({...eventForm, isActive: e.target.checked})} /> Active (visible on website)</label>
                   <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingEvent ? 'Update' : 'Create'}</button>{editingEvent && <button type="button" onClick={() => { setEditingEvent(null); setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true }); setEventImageFile(null); }} className="border px-4 py-2 rounded">Cancel</button>}</div>
@@ -1187,11 +1208,10 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Gallery Tab */}
+          {/* Gallery Tab (unchanged) */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
                   <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
@@ -1206,7 +1226,6 @@ const AdminDashboard = () => {
                     </div>
                   )}
                 </div>
-
                 <select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border p-2"><option value="event">Event</option><option value="product">Product</option><option value="team">Team</option><option value="workshop">Workshop</option></select>
                 <input type="text" placeholder="Description" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border p-2" />
                 <button type="submit" className="bg-blue-600 text-white px-4 py-2">Add</button>
@@ -1215,7 +1234,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Chat History Tab */}
+          {/* Chat History Tab (unchanged) */}
           {activeTab === 'chat-history' && (
             <div>
               <div className="mb-6">
@@ -1336,7 +1355,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* User Management Tab */}
+          {/* User Management Tab (unchanged) */}
           {activeTab === 'users' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
@@ -1399,14 +1418,14 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Contact Info Tab */}
+          {/* Contact Info Tab (unchanged) */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl"><h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2><form onSubmit={handleContactUpdate} className="space-y-4"><input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button></form></div>
           )}
         </main>
       </div>
 
-      {/* User Modal (Add/Edit) */}
+      {/* User Modal (unchanged) */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">

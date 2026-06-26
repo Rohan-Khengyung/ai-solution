@@ -5,16 +5,30 @@ import { getGalleryItems } from '../services/api';
 
 // Category colors (from sample)
 const CAT_COLORS = {
-  Events: '#6366f1',
-  Team: '#06b6d4',
-  Workshops: '#10b981',
-  Office: '#f59e0b',
-  Conference: '#6366f1',
-  Expo: '#10b981',
-  Awards: '#f59e0b',
-  Networking: '#ec4899',
-  Launch: '#06b6d4',
-  Product: '#8b5cf6',
+  event: '#6366f1',
+  team: '#06b6d4',
+  workshop: '#10b981',
+  office: '#f59e0b',
+  conference: '#6366f1',
+  expo: '#10b981',
+  award: '#f59e0b',
+  networking: '#ec4899',
+  launch: '#06b6d4',
+  product: '#8b5cf6',
+};
+
+// Map category to display name (capitalized)
+const categoryDisplayMap = {
+  event: 'Event',
+  team: 'Team',
+  workshop: 'Workshop',
+  office: 'Office',
+  conference: 'Conference',
+  expo: 'Expo',
+  award: 'Award',
+  networking: 'Networking',
+  launch: 'Launch',
+  product: 'Product',
 };
 
 const Gallery = () => {
@@ -24,7 +38,13 @@ const Gallery = () => {
   const [lightbox, setLightbox] = useState(null);
 
   // Extract unique categories from fetched items
-  const categories = ['All', ...new Set(items.map(item => item.category).filter(Boolean))];
+  const rawCategories = ['All', ...new Set(items.map(item => item.category).filter(Boolean))];
+
+  // Build category options with display labels
+  const categoryOptions = rawCategories.map(cat => ({
+    value: cat,
+    label: cat === 'All' ? 'All' : (categoryDisplayMap[cat] || cat.charAt(0).toUpperCase() + cat.slice(1))
+  }));
 
   useEffect(() => {
     const fetchGallery = async () => {
@@ -79,7 +99,7 @@ const Gallery = () => {
           <h1 style={{ 
             color: '#f1f5f9', 
             marginBottom: '20px',
-            fontSize: 'clamp(3rem, 8vw, 5.5rem)',  // Much larger, responsive
+            fontSize: 'clamp(3rem, 8vw, 5.5rem)',
             fontWeight: 'bold',
             lineHeight: 1.2,
             letterSpacing: '-0.02em'
@@ -105,23 +125,23 @@ const Gallery = () => {
           maxWidth: '1280px', margin: '0 auto',
           display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center',
         }}>
-          {categories.map(cat => (
+          {categoryOptions.map(({ value, label }) => (
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
+              key={value}
+              onClick={() => setActiveCategory(value)}
               style={{
                 padding: '7px 20px', borderRadius: '999px', cursor: 'pointer',
                 fontSize: '0.875rem', fontWeight: 500, transition: 'all 0.2s ease',
-                background: activeCategory === cat
+                background: activeCategory === value
                   ? 'linear-gradient(135deg, #6366f1, #06b6d4)'
                   : 'rgba(255,255,255,0.04)',
-                border: activeCategory === cat
+                border: activeCategory === value
                   ? 'none'
                   : '1px solid rgba(99, 102, 241, 0.18)',
-                color: activeCategory === cat ? 'white' : '#94a3b8',
+                color: activeCategory === value ? 'white' : '#94a3b8',
               }}
             >
-              {cat}
+              {label}
             </button>
           ))}
         </div>
@@ -145,6 +165,7 @@ const Gallery = () => {
           }}>
             {filtered.map((item, i) => {
               const categoryColor = CAT_COLORS[item.category] || '#6366f1';
+              const displayCat = categoryDisplayMap[item.category] || item.category;
               return (
                 <motion.div
                   key={item._id}
@@ -195,7 +216,7 @@ const Gallery = () => {
                       color: '#a5b4fc',
                       width: 'fit-content',
                     }}>
-                      {item.category}
+                      {displayCat}
                     </span>
                     <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.9rem' }}>{item.title}</div>
                     <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '4px' }}>
@@ -258,7 +279,7 @@ const Gallery = () => {
                 <div>
                   <div style={{ color: '#f1f5f9', fontWeight: 600 }}>{lightbox.title}</div>
                   <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                    {lightbox.createdAt ? new Date(lightbox.createdAt).toLocaleDateString() : ''} · {lightbox.category}
+                    {lightbox.createdAt ? new Date(lightbox.createdAt).toLocaleDateString() : ''} · {categoryDisplayMap[lightbox.category] || lightbox.category}
                   </div>
                 </div>
                 <button

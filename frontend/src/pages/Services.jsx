@@ -2,7 +2,8 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   Brain, Cpu, Zap, BarChart3, Globe, Shield,
-  CheckCircle, ArrowRight, MessageSquare, Database, Code2, Layers
+  CheckCircle, ArrowRight, MessageSquare, Database, Code2, Layers,
+  GraduationCap, Clock, Users, Award, BookOpen, Video, FileText // new icons
 } from 'lucide-react';
 
 const SERVICES = [
@@ -104,6 +105,74 @@ const SERVICES = [
   },
 ];
 
+// ========== NEW: Training Programs ==========
+const TRAINING_PROGRAMS = [
+  {
+    icon: <Brain size={28} />,
+    title: 'AI Fundamentals for Business Leaders',
+    subtitle: 'Executive Briefing',
+    description: 'A one-day intensive programme designed for C‑suite executives and managers to demystify AI, identify opportunities, and build a strategic roadmap.',
+    duration: '1 Day (On-site or Remote)',
+    format: 'Workshop + Case Studies',
+    audience: 'C‑suite, Directors, Heads of Dept',
+    keyTopics: [
+      'What AI can and cannot do',
+      'Use case identification and prioritisation',
+      'Building a business case for AI',
+      'Ethics and governance considerations',
+      'ROI measurement and success metrics',
+    ],
+  },
+  {
+    icon: <Code2 size={28} />,
+    title: 'Applied Machine Learning Engineering',
+    subtitle: 'Hands-on Technical Training',
+    description: 'Equip your engineering teams with practical skills to build, deploy, and maintain production-grade ML models using modern frameworks and MLOps practices.',
+    duration: '3 Days (On-site)',
+    format: 'Instructor-led + Labs',
+    audience: 'Data Scientists, ML Engineers, Software Engineers',
+    keyTopics: [
+      'End-to-end ML pipeline (scikit-learn, TensorFlow, PyTorch)',
+      'Feature engineering and model selection',
+      'Model deployment (Docker, Kubernetes, API serving)',
+      'MLOps: monitoring, retraining, and versioning',
+      'Performance optimisation and cost management',
+    ],
+  },
+  {
+    icon: <Database size={28} />,
+    title: 'Data Strategy & Governance',
+    subtitle: 'Data‑Driven Decision Making',
+    description: 'A comprehensive programme to help organisations establish a data‑first culture, build robust data infrastructure, and ensure compliance with privacy regulations.',
+    duration: '2 Days (Virtual or On-site)',
+    format: 'Interactive Workshop',
+    audience: 'Data Architects, CDOs, Compliance Officers',
+    keyTopics: [
+      'Data maturity assessment',
+      'Data lake/warehouse design (Snowflake, BigQuery)',
+      'Data quality and lineage',
+      'GDPR, CCPA, and AI ethics compliance',
+      'Building a data governance framework',
+    ],
+  },
+  {
+    icon: <Zap size={28} />,
+    title: 'AI‑Driven Product Management',
+    subtitle: 'Product Innovation with AI',
+    description: 'A hands-on course for product managers and product leaders on how to integrate AI into product roadmaps, from opportunity identification to launch and iteration.',
+    duration: '2 Days (On-site)',
+    format: 'Workshop + Case Studies',
+    audience: 'Product Managers, Product Owners, Innovation Leads',
+    keyTopics: [
+      'Identifying AI product opportunities',
+      'Prototyping with AI tools (no‑code/low‑code)',
+      'Building and managing AI product teams',
+      'User experience design for AI products',
+      'Launching and iterating AI features',
+    ],
+  },
+];
+
 const fadeUp = {
   initial: { opacity: 0, y: 40 },
   whileInView: { opacity: 1, y: 0 },
@@ -147,7 +216,7 @@ const Services = () => {
           <h1 style={{
             color: '#f1f5f9',
             marginBottom: '20px',
-            fontSize: 'clamp(3rem, 8vw, 5.5rem)',  // Much larger, responsive
+            fontSize: 'clamp(3rem, 8vw, 5.5rem)',
             fontWeight: 'bold',
             lineHeight: 1.2,
             letterSpacing: '-0.02em',
@@ -167,8 +236,8 @@ const Services = () => {
         </motion.div>
       </section>
 
-      {/* Services List */}
-      <section style={{ padding: '80px 24px 120px' }}>
+      {/* Services List (horizontal cards) */}
+      <section style={{ padding: '80px 24px 80px' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '48px' }}>
           {SERVICES.map((service) => (
             <motion.div
@@ -251,7 +320,137 @@ const Services = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ========== NEW: Training Section ========== */}
+      <section style={{ padding: '60px 24px 100px' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          {/* Section header */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            style={{ textAlign: 'center', marginBottom: '56px' }}
+          >
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '6px 16px', borderRadius: '999px',
+              background: 'rgba(139, 92, 246, 0.08)',
+              border: '1px solid rgba(139, 92, 246, 0.2)',
+              marginBottom: '16px',
+            }}>
+              <GraduationCap size={14} color="#a78bfa" />
+              <span style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 500 }}>Professional Development</span>
+            </div>
+            <h2 style={{
+              color: '#f1f5f9',
+              fontSize: 'clamp(2.5rem, 6vw, 3.8rem)',
+              fontWeight: 'bold',
+              marginBottom: '16px',
+            }}>
+              Training &amp; Upskilling{' '}
+              <span style={{
+                background: 'linear-gradient(135deg, #a78bfa, #ec4899)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
+                Programs
+              </span>
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '1.05rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.7 }}>
+              Empower your teams with the knowledge and skills to leverage AI effectively.
+            </p>
+          </motion.div>
+
+          {/* Vertical list of training programs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            {TRAINING_PROGRAMS.map((program, idx) => (
+              <motion.div
+                key={program.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: idx * 0.07 }}
+                style={{
+                  padding: '36px 40px',
+                  borderRadius: '16px',
+                  background: 'rgba(10, 18, 42, 0.6)',
+                  border: '1px solid rgba(139, 92, 246, 0.1)',
+                  backdropFilter: 'blur(12px)',
+                  display: 'grid',
+                  gridTemplateColumns: '60px 1fr auto',
+                  gap: '24px',
+                  alignItems: 'start',
+                }}
+              >
+                {/* Icon */}
+                <div style={{
+                  width: '60px', height: '60px', borderRadius: '14px',
+                  background: 'rgba(139, 92, 246, 0.12)',
+                  border: '1px solid rgba(139, 92, 246, 0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#a78bfa',
+                }}>
+                  {program.icon}
+                </div>
+
+                {/* Content */}
+                <div>
+                  <h3 style={{ color: '#f1f5f9', fontSize: '1.4rem', fontWeight: 600, marginBottom: '4px' }}>
+                    {program.title}
+                  </h3>
+                  <span style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 500, display: 'block', marginBottom: '12px' }}>
+                    {program.subtitle}
+                  </span>
+                  <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '16px' }}>
+                    {program.description}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
+                      <Clock size={16} /> {program.duration}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
+                      <Users size={16} /> {program.audience}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
+                      <FileText size={16} /> {program.format}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {program.keyTopics.map(topic => (
+                      <span key={topic} style={{
+                        padding: '3px 12px', borderRadius: '999px',
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        border: '1px solid rgba(139, 92, 246, 0.15)',
+                        color: '#c4b5fd', fontSize: '0.8rem',
+                      }}>
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* CTA button */}
+                <div style={{ alignSelf: 'center' }}>
+                  <Link
+                    to="/contact"
+                    style={{
+                      padding: '10px 20px', borderRadius: '8px', textDecoration: 'none',
+                      color: 'white', fontWeight: 600, fontSize: '0.85rem',
+                      background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Enquire <ArrowRight size={14} />
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section (existing) */}
       <section style={{ padding: '0 24px 120px' }}>
         <motion.div
           {...fadeUp}
