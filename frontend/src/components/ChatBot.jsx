@@ -9,7 +9,7 @@ const ChatBot = () => {
     {
       id: 0,
       from: 'bot',
-      text: "Hi! 👋 I'm Aria, your AI Solutions assistant. How can I help you today? Ask me about our services, pricing, events, or anything else!",
+      text: "Hi! I'm Aria, your AI Solutions assistant. How can I help you today? Ask me about our services, pricing, events, or anything else!",
       timestamp: new Date()
     }
   ]);

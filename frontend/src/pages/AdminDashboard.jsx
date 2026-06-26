@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
   Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive,
-  Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown, UserPlus
+  Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown, UserPlus,
+  Upload
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -35,6 +36,7 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  uploadImage // NEW: import image upload function
 } from '../services/api';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -63,10 +65,18 @@ const AdminDashboard = () => {
     title: '', excerpt: '', content: '', image: '',
     author: 'AI Solutions Team', published: true, tags: []
   });
+  // NEW: Blog image upload state
+  const [blogImageFile, setBlogImageFile] = useState(null);
+  const [blogUploading, setBlogUploading] = useState(false);
+
   const [galleryItems, setGalleryItems] = useState([]);
   const [galleryForm, setGalleryForm] = useState({
     title: '', image: '', category: 'event', description: '',
   });
+  // NEW: Gallery image upload state
+  const [galleryImageFile, setGalleryImageFile] = useState(null);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+
   const [contact, setContact] = useState({
     email: '', phone: '', address: '', hours: '',
   });
@@ -77,6 +87,10 @@ const AdminDashboard = () => {
   const [eventForm, setEventForm] = useState({
     title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true
   });
+  // NEW: Event image upload state
+  const [eventImageFile, setEventImageFile] = useState(null);
+  const [eventUploading, setEventUploading] = useState(false);
+
   const [selectedEventRegistrations, setSelectedEventRegistrations] = useState(null);
   const [allRegistrations, setAllRegistrations] = useState([]);
 
@@ -191,6 +205,61 @@ const AdminDashboard = () => {
         console.error(err);
         alert('Failed to delete registration');
       }
+    }
+  };
+
+  // ===== NEW: Image Upload Handlers =====
+  const handleBlogImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBlogImageFile(file);
+    setBlogUploading(true);
+    try {
+      const res = await uploadImage(file);
+      if (res.data.success) {
+        setBlogForm(prev => ({ ...prev, image: res.data.url }));
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Image upload failed. Please try again.');
+    } finally {
+      setBlogUploading(false);
+    }
+  };
+
+  const handleGalleryImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setGalleryImageFile(file);
+    setGalleryUploading(true);
+    try {
+      const res = await uploadImage(file);
+      if (res.data.success) {
+        setGalleryForm(prev => ({ ...prev, image: res.data.url }));
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Image upload failed. Please try again.');
+    } finally {
+      setGalleryUploading(false);
+    }
+  };
+
+  const handleEventImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setEventImageFile(file);
+    setEventUploading(true);
+    try {
+      const res = await uploadImage(file);
+      if (res.data.success) {
+        setEventForm(prev => ({ ...prev, image: res.data.url }));
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Image upload failed. Please try again.');
+    } finally {
+      setEventUploading(false);
     }
   };
 
@@ -337,6 +406,7 @@ const AdminDashboard = () => {
       else await createBlogPost(blogForm);
       alert(editingBlog ? 'Blog updated!' : 'Blog published!');
       setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] });
+      setBlogImageFile(null);
       setEditingBlog(null);
       await fetchBlogs();
     } catch (err) { alert('Failed to save blog post'); }
@@ -348,6 +418,7 @@ const AdminDashboard = () => {
       image: post.image, author: post.author, published: post.published,
       tags: post.tags || []
     });
+    setBlogImageFile(null);
   };
   const handleDeleteBlog = async (id) => {
     if (window.confirm('Delete this blog post?')) {
@@ -359,10 +430,11 @@ const AdminDashboard = () => {
   // --- Gallery handlers ---
   const handleGallerySubmit = async (e) => {
     e.preventDefault();
-    if (!galleryForm.title || !galleryForm.image) { alert('Title and Image URL are required'); return; }
+    if (!galleryForm.title || !galleryForm.image) { alert('Title and Image are required'); return; }
     try {
       await addGalleryItem(galleryForm);
       setGalleryForm({ title: '', image: '', category: 'event', description: '' });
+      setGalleryImageFile(null);
       await fetchGallery();
       alert('Gallery item added');
     } catch (err) { alert('Failed to add gallery item'); }
@@ -386,12 +458,17 @@ const AdminDashboard = () => {
   // --- Event handlers ---
   const handleEventSubmit = async (e) => {
     e.preventDefault();
+    if (!eventForm.title || !eventForm.description || !eventForm.date || !eventForm.time || !eventForm.location || !eventForm.image) {
+      alert('Please fill in all required fields');
+      return;
+    }
     try {
       if (editingEvent) await updateEvent(editingEvent._id, eventForm);
       else await createEvent(eventForm);
       alert(editingEvent ? 'Event updated' : 'Event created');
       setEditingEvent(null);
       setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true });
+      setEventImageFile(null);
       fetchEvents();
     } catch (err) { alert('Failed to save event'); }
   };
@@ -999,11 +1076,27 @@ const AdminDashboard = () => {
                   <input type="text" placeholder="Title *" value={blogForm.title} onChange={(e) => setBlogForm({...blogForm, title: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
                   <input type="text" placeholder="Excerpt *" value={blogForm.excerpt} onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
                   <textarea placeholder="Content *" rows="6" value={blogForm.content} onChange={(e) => setBlogForm({...blogForm, content: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
-                  <input type="text" placeholder="Image URL *" value={blogForm.image} onChange={(e) => setBlogForm({...blogForm, image: e.target.value})} required className="w-full border border-gray-200 rounded px-4 py-2" />
+
+                  {/* NEW: Image Upload with File Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
+                    <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
+                      <Upload size={16} /> Choose Image
+                      <input type="file" accept="image/*" onChange={handleBlogImageChange} className="hidden" />
+                    </label>
+                    {blogUploading && <span className="text-blue-600 text-sm ml-2">Uploading...</span>}
+                    {blogForm.image && !blogUploading && <span className="text-green-600 text-sm ml-2">Uploaded</span>}
+                    {blogForm.image && (
+                      <div className="mt-2 w-32 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={blogForm.image} alt="preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+
                   <input type="text" placeholder="Author" value={blogForm.author} onChange={(e) => setBlogForm({...blogForm, author: e.target.value})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <input type="text" placeholder="Tags (comma separated)" value={blogForm.tags.join(', ')} onChange={(e) => setBlogForm({...blogForm, tags: e.target.value.split(',').map(t => t.trim())})} className="w-full border border-gray-200 rounded px-4 py-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={blogForm.published} onChange={(e) => setBlogForm({...blogForm, published: e.target.checked})} /> Published (visible on website)</label>
-                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>{editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] }); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}</div>
+                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingBlog ? 'Update' : 'Publish'}</button>{editingBlog && <button type="button" onClick={() => { setEditingBlog(null); setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [] }); setBlogImageFile(null); }} className="border border-gray-300 px-4 py-2 rounded">Cancel</button>}</div>
                 </form>
               </div>
               <div className="space-y-4">
@@ -1031,10 +1124,26 @@ const AdminDashboard = () => {
                   <textarea placeholder="Description *" rows="3" value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} required className="w-full border rounded p-2" />
                   <div className="grid grid-cols-2 gap-4"><input type="date" value={eventForm.date.split('T')[0]} onChange={e => setEventForm({...eventForm, date: e.target.value})} required className="border rounded p-2" /><input type="text" placeholder="Time (e.g., 10:00 – 18:00 BST)" value={eventForm.time} onChange={e => setEventForm({...eventForm, time: e.target.value})} required className="border rounded p-2" /></div>
                   <input type="text" placeholder="Location *" value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} required className="w-full border rounded p-2" />
-                  <input type="text" placeholder="Image URL" value={eventForm.image} onChange={e => setEventForm({...eventForm, image: e.target.value})} className="w-full border rounded p-2" />
+
+                  {/* NEW: Image Upload with File Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
+                    <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
+                      <Upload size={16} /> Choose Image
+                      <input type="file" accept="image/*" onChange={handleEventImageChange} className="hidden" />
+                    </label>
+                    {eventUploading && <span className="text-blue-600 text-sm ml-2">Uploading...</span>}
+                    {eventForm.image && !eventUploading && <span className="text-green-600 text-sm ml-2">Uploaded</span>}
+                    {eventForm.image && (
+                      <div className="mt-2 w-32 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={eventForm.image} alt="preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+
                   <input type="number" placeholder="Capacity *" min="1" value={eventForm.capacity} onChange={e => setEventForm({...eventForm, capacity: parseInt(e.target.value)})} required className="w-full border rounded p-2" />
                   <label className="flex items-center gap-2"><input type="checkbox" checked={eventForm.isActive} onChange={e => setEventForm({...eventForm, isActive: e.target.checked})} /> Active (visible on website)</label>
-                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingEvent ? 'Update' : 'Create'}</button>{editingEvent && <button type="button" onClick={() => { setEditingEvent(null); setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true }); }} className="border px-4 py-2 rounded">Cancel</button>}</div>
+                  <div className="flex gap-2"><button type="submit" className="bg-[#0055FF] text-white px-4 py-2 rounded">{editingEvent ? 'Update' : 'Create'}</button>{editingEvent && <button type="button" onClick={() => { setEditingEvent(null); setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true }); setEventImageFile(null); }} className="border px-4 py-2 rounded">Cancel</button>}</div>
                 </form>
               </div>
               <div className="space-y-6">
@@ -1042,7 +1151,7 @@ const AdminDashboard = () => {
                   <div key={event._id} className="bg-white border border-gray-200 rounded-lg p-5">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1"><h3 className="text-xl font-bold text-gray-900">{event.title}</h3><p className="text-gray-600 text-sm mt-1">{event.description}</p><div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm text-gray-500"><span className="flex items-center gap-1"><Calendar size={14} />{new Date(event.date).toLocaleDateString()}</span><span className="flex items-center gap-1"><Clock size={14} />{event.time}</span><span className="flex items-center gap-1"><MapPin size={14} />{event.location}</span><span className="flex items-center gap-1"><Users size={14} />{event.registrations}/{event.capacity}</span></div></div>
-                      <div className="flex gap-2"><button onClick={() => { setEditingEvent(event); setEventForm({ ...event, date: event.date.split('T')[0] }); }} className="border border-gray-300 px-3 py-1 rounded text-sm">Edit</button><button onClick={() => handleDeleteEvent(event._id)} className="border border-red-200 text-red-600 px-3 py-1 rounded text-sm">Delete</button><button onClick={() => fetchRegistrations(event._id)} className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm">View Registrations</button></div>
+                      <div className="flex gap-2"><button onClick={() => { setEditingEvent(event); setEventForm({ ...event, date: event.date.split('T')[0] }); setEventImageFile(null); }} className="border border-gray-300 px-3 py-1 rounded text-sm">Edit</button><button onClick={() => handleDeleteEvent(event._id)} className="border border-red-200 text-red-600 px-3 py-1 rounded text-sm">Delete</button><button onClick={() => fetchRegistrations(event._id)} className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm">View Registrations</button></div>
                     </div>
                   </div>
                 ))}
@@ -1058,7 +1167,28 @@ const AdminDashboard = () => {
           {/* Gallery Tab */}
           {activeTab === 'gallery' && (
             <div>
-              <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Image URL *" value={galleryForm.image} onChange={(e) => setGalleryForm({...galleryForm, image: e.target.value})} required className="w-full border p-2" /><select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border p-2"><option value="event">Event</option><option value="product">Product</option><option value="team">Team</option><option value="workshop">Workshop</option></select><input type="text" placeholder="Description" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Add</button></form></div>
+              <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
+                
+                {/* NEW: Image Upload with File Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image *</label>
+                  <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 transition px-4 py-2 rounded border border-gray-300 text-sm text-gray-700">
+                    <Upload size={16} /> Choose Image
+                    <input type="file" accept="image/*" onChange={handleGalleryImageChange} className="hidden" />
+                  </label>
+                  {galleryUploading && <span className="text-blue-600 text-sm ml-2">Uploading...</span>}
+                  {galleryForm.image && !galleryUploading && <span className="text-green-600 text-sm ml-2">Uploaded</span>}
+                  {galleryForm.image && (
+                    <div className="mt-2 w-32 h-20 rounded-lg overflow-hidden border border-gray-200">
+                      <img src={galleryForm.image} alt="preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+
+                <select value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} className="w-full border p-2"><option value="event">Event</option><option value="product">Product</option><option value="team">Team</option><option value="workshop">Workshop</option></select>
+                <input type="text" placeholder="Description" value={galleryForm.description} onChange={(e) => setGalleryForm({...galleryForm, description: e.target.value})} className="w-full border p-2" />
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2">Add</button>
+              </form></div>
               <div className="grid grid-cols-3 gap-4">{galleryItems.map((item) => (<div key={item._id} className="border p-2"><img src={item.image} alt={item.title} className="w-full h-32 object-cover" /><p className="font-bold">{item.title}</p><button onClick={() => handleDeleteGallery(item._id)} className="text-red-600 text-sm">Delete</button></div>))}</div>
             </div>
           )}

@@ -68,4 +68,16 @@ export const createAdminUser = (data) => API.post('/admin/users', data);
 export const updateAdminUser = (id, data) => API.put(`/admin/users/${id}`, data);
 export const deleteAdminUser = (id) => API.delete(`/admin/users/${id}`);
 
+export const uploadImage = (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const token = localStorage.getItem('adminToken');
+  return API.post('/upload/image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
 export default API;
