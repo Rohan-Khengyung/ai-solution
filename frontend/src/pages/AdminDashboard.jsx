@@ -54,6 +54,39 @@ const AdminDashboard = () => {
 
   const [chartRange, setChartRange] = useState('month');
 
+  // Notification system
+  const [notification, setNotification] = useState({ message: '', type: 'success', visible: false });
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type, visible: true });
+    setTimeout(() => {
+      setNotification(prev => ({ ...prev, visible: false }));
+    }, 4000);
+  };
+
+  // Custom confirmation modal
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+  });
+
+  const openConfirmModal = (title, message, onConfirm) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+  };
+
+  const handleConfirm = () => {
+    if (confirmModal.onConfirm) {
+      confirmModal.onConfirm();
+    }
+    closeConfirmModal();
+  };
+
   // --- Data State ---
   const [enquiries, setEnquiries] = useState([]);
   const [enquiryFilter, setEnquiryFilter] = useState('');
@@ -103,8 +136,8 @@ const AdminDashboard = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [userForm, setUserForm] = useState({
     username: '',
-    email: '',          // login email
-    recipientEmail: '', // recipient email (TO)
+    email: '',
+    recipientEmail: '',
     password: '',
     role: 'viewer'
   });
@@ -118,7 +151,7 @@ const AdminDashboard = () => {
   // Export format state
   const [exportFormat, setExportFormat] = useState('csv');
 
-  // --- Fetch functions (unchanged) ---
+  // --- Fetch functions ---
   const fetchEnquiries = async () => {
     try {
       const params = {};
@@ -126,49 +159,70 @@ const AdminDashboard = () => {
       if (enquirySearch) params.search = enquirySearch;
       const res = await getEnquiries(params);
       setEnquiries(res.data.data);
-    } catch (err) { console.error(err); alert('Failed to load enquiries'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load enquiries', 'error');
+    }
   };
 
   const fetchAllReviews = async () => {
     try {
       const res = await getAllReviews();
       setAllReviews(res.data.data);
-    } catch (err) { console.error(err); alert('Failed to load reviews'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load reviews', 'error');
+    }
   };
 
   const fetchBlogs = async () => {
     try {
       const res = await getAllBlogsAdmin();
       setBlogPosts(res.data.data);
-    } catch (err) { console.error(err); alert('Failed to load blog posts'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load blog posts', 'error');
+    }
   };
 
   const fetchGallery = async () => {
     try {
       const res = await getGalleryItems();
       setGalleryItems(res.data.data);
-    } catch (err) { console.error(err); alert('Failed to load gallery'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load gallery', 'error');
+    }
   };
 
   const fetchContact = async () => {
     try {
       const res = await getContactDetails();
       setContact(res.data.data);
-    } catch (err) { console.error(err); alert('Failed to load contact details'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load contact details', 'error');
+    }
   };
 
   const fetchEvents = async () => {
     try {
       const res = await getAllEventsAdmin();
       setEvents(res.data.data);
-    } catch (err) { console.error(err); alert('Failed to load events'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load events', 'error');
+    }
   };
 
   const fetchRegistrations = async (eventId) => {
     try {
       const res = await getEventRegistrations(eventId);
       setSelectedEventRegistrations({ eventId, registrations: res.data.data });
-    } catch (err) { console.error(err); alert('Failed to load registrations'); }
+    } catch (err) { 
+      console.error(err); 
+      showNotification('Failed to load registrations', 'error');
+    }
   };
 
   const fetchAllRegistrations = async () => {
@@ -189,7 +243,7 @@ const AdminDashboard = () => {
       setChatTotalPages(res.data.pages);
     } catch (err) {
       console.error(err);
-      alert('Failed to load chat histories');
+      showNotification('Failed to load chat histories', 'error');
     }
   };
 
@@ -199,21 +253,25 @@ const AdminDashboard = () => {
       setAdminUsers(res.data.data);
     } catch (err) {
       console.error(err);
-      alert('Failed to load admin users');
+      showNotification('Failed to load admin users', 'error');
     }
   };
 
   const handleDeleteRegistration = async (registrationId, eventId, registrantName) => {
-    if (window.confirm(`Delete registration for ${registrantName}?`)) {
-      try {
-        await deleteRegistration(registrationId);
-        fetchRegistrations(eventId);
-        alert('Registration deleted successfully');
-      } catch (err) {
-        console.error(err);
-        alert('Failed to delete registration');
+    openConfirmModal(
+      'Delete Registration',
+      `Delete registration for ${registrantName}?`,
+      async () => {
+        try {
+          await deleteRegistration(registrationId);
+          fetchRegistrations(eventId);
+          showNotification('Registration deleted successfully', 'success');
+        } catch (err) {
+          console.error(err);
+          showNotification('Failed to delete registration', 'error');
+        }
       }
-    }
+    );
   };
 
   // ===== Image Upload Handlers =====
@@ -226,10 +284,11 @@ const AdminDashboard = () => {
       const res = await uploadImage(file);
       if (res.data.success) {
         setBlogForm(prev => ({ ...prev, image: res.data.url }));
+        showNotification('Image uploaded successfully', 'success');
       }
     } catch (error) {
       console.error(error);
-      alert('Image upload failed. Please try again.');
+      showNotification('Image upload failed. Please try again.', 'error');
     } finally {
       setBlogUploading(false);
     }
@@ -244,10 +303,11 @@ const AdminDashboard = () => {
       const res = await uploadImage(file);
       if (res.data.success) {
         setGalleryForm(prev => ({ ...prev, image: res.data.url }));
+        showNotification('Image uploaded successfully', 'success');
       }
     } catch (error) {
       console.error(error);
-      alert('Image upload failed. Please try again.');
+      showNotification('Image upload failed. Please try again.', 'error');
     } finally {
       setGalleryUploading(false);
     }
@@ -262,10 +322,11 @@ const AdminDashboard = () => {
       const res = await uploadImage(file);
       if (res.data.success) {
         setEventForm(prev => ({ ...prev, image: res.data.url }));
+        showNotification('Image uploaded successfully', 'success');
       }
     } catch (error) {
       console.error(error);
-      alert('Image upload failed. Please try again.');
+      showNotification('Image upload failed. Please try again.', 'error');
     } finally {
       setEventUploading(false);
     }
@@ -287,17 +348,17 @@ const AdminDashboard = () => {
   const handleSendEmail = async (e) => {
     e.preventDefault();
     if (!emailData.to || !emailData.subject || !emailData.message) {
-      alert('All fields are required');
+      showNotification('All fields are required', 'error');
       return;
     }
     setEmailSending(true);
     try {
       await sendCustomEmail(emailData);
-      alert('Email sent successfully!');
+      showNotification('Email sent successfully!', 'success');
       setEmailModalOpen(false);
       setEmailData({ to: '', subject: '', message: '' });
     } catch (err) {
-      alert('Failed to send email. Please try again.');
+      showNotification('Failed to send email. Please try again.', 'error');
     } finally {
       setEmailSending(false);
     }
@@ -306,7 +367,7 @@ const AdminDashboard = () => {
   // --- Export functions (CSV + Excel) ---
   const exportData = (dataToExport, format, filename = 'enquiries') => {
     if (!dataToExport.length) {
-      alert('No data to export');
+      showNotification('No data to export', 'error');
       return;
     }
     const headers = ['Name', 'Email', 'Phone', 'Company', 'Country', 'Job Title', 'Job Details', 'Status', 'Date'];
@@ -334,6 +395,7 @@ const AdminDashboard = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      showNotification('Exported successfully', 'success');
     } else { // Excel
       const ws = XLSX.utils.aoa_to_sheet(data);
       const wb = XLSX.utils.book_new();
@@ -348,12 +410,13 @@ const AdminDashboard = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      showNotification('Exported successfully', 'success');
     }
   };
 
   const handleExportSelected = () => {
     if (selectedEnquiries.length === 0) {
-      alert('No enquiries selected');
+      showNotification('No enquiries selected', 'error');
       return;
     }
     const selectedData = enquiries.filter(enq => selectedEnquiries.includes(enq._id));
@@ -362,7 +425,7 @@ const AdminDashboard = () => {
 
   const handleExportAll = () => {
     if (enquiries.length === 0) {
-      alert('No enquiries to export');
+      showNotification('No enquiries to export', 'error');
       return;
     }
     exportData(enquiries, exportFormat, `all_enquiries_${new Date().toISOString().slice(0,19)}`);
@@ -399,14 +462,31 @@ const AdminDashboard = () => {
 
   // --- Enquiry handlers ---
   const handleStatusChange = async (id, status) => {
-    try { await updateEnquiryStatus(id, status); fetchEnquiries(); }
-    catch (err) { alert('Failed to update status'); }
-  };
-  const handleDeleteEnquiry = async (id) => {
-    if (window.confirm('Delete this enquiry?')) {
-      try { await deleteEnquiry(id); fetchEnquiries(); }
-      catch (err) { alert('Failed to delete enquiry'); }
+    try { 
+      await updateEnquiryStatus(id, status); 
+      fetchEnquiries();
+      showNotification(`Enquiry marked as ${status}`, 'success');
     }
+    catch (err) { 
+      showNotification('Failed to update status', 'error');
+    }
+  };
+
+  const handleDeleteEnquiry = async (id) => {
+    openConfirmModal(
+      'Delete Enquiry',
+      'Delete this enquiry?',
+      async () => {
+        try { 
+          await deleteEnquiry(id); 
+          fetchEnquiries();
+          showNotification('Enquiry deleted', 'success');
+        }
+        catch (err) { 
+          showNotification('Failed to delete enquiry', 'error');
+        }
+      }
+    );
   };
 
   const handleSelectOne = (id) => {
@@ -414,59 +494,105 @@ const AdminDashboard = () => {
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
-  const handleBulkStatus = async (status) => {
-    if (!selectedEnquiries.length) return;
-    if (window.confirm(`Mark ${selectedEnquiries.length} enquiry(ies) as ${status}?`)) {
+
+const handleBulkStatus = async (status) => {
+  if (!selectedEnquiries.length) return;
+  openConfirmModal(
+    'Update Selected Enquiries',
+    `Mark ${selectedEnquiries.length} enquiry(ies) as ${status}?`,
+    async () => {
       for (const id of selectedEnquiries) await updateEnquiryStatus(id, status);
       fetchEnquiries();
       setSelectedEnquiries([]);
-      alert(`Updated ${selectedEnquiries.length} enquiries.`);
+      showNotification(`Updated ${selectedEnquiries.length} enquiries to ${status}`, 'success');
     }
-  };
-  const handleBulkDelete = async () => {
-    if (!selectedEnquiries.length) return;
-    if (window.confirm(`Delete ${selectedEnquiries.length} enquiry(ies) permanently?`)) {
+  );
+};
+
+const handleBulkDelete = async () => {
+  if (!selectedEnquiries.length) return;
+  openConfirmModal(
+    'Delete Selected Enquiries',
+    `Delete ${selectedEnquiries.length} enquiry(ies) permanently?`,
+    async () => {
       for (const id of selectedEnquiries) await deleteEnquiry(id);
       fetchEnquiries();
       setSelectedEnquiries([]);
-      alert(`Deleted ${selectedEnquiries.length} enquiries.`);
+      showNotification(`Deleted ${selectedEnquiries.length} enquiries`, 'success');
     }
-  };
+  );
+};
 
   // --- Review handlers ---
   const handleApproveReview = async (id) => {
-    try { await approveReview(id); await fetchAllReviews(); }
-    catch (err) { alert('Failed to approve review'); }
-  };
-  const handleRejectReview = async (id) => {
-    if (!window.confirm('Reject this review?')) return;
-    try { await rejectReview(id); await fetchAllReviews(); alert('Review rejected'); }
-    catch (err) { console.error(err); alert('Failed to reject review'); }
-  };
-  const handleDeleteReview = async (id) => {
-    if (window.confirm('Delete this review permanently?')) {
-      try { await deleteReview(id); await fetchAllReviews(); }
-      catch (err) { alert('Failed to delete review'); }
+    try { 
+      await approveReview(id); 
+      await fetchAllReviews();
+      showNotification('Review approved', 'success');
     }
+    catch (err) { 
+      showNotification('Failed to approve review', 'error');
+    }
+  };
+
+  const handleRejectReview = async (id) => {
+    openConfirmModal(
+      'Reject Review',
+      'Reject this review?',
+      async () => {
+        try { 
+          await rejectReview(id); 
+          await fetchAllReviews();
+          showNotification('Review rejected', 'success');
+        }
+        catch (err) { 
+          showNotification('Failed to reject review', 'error');
+        }
+      }
+    );
+  };
+
+  const handleDeleteReview = async (id) => {
+    openConfirmModal(
+      'Delete Review',
+      'Delete this review permanently?',
+      async () => {
+        try { 
+          await deleteReview(id); 
+          await fetchAllReviews();
+          showNotification('Review deleted', 'success');
+        }
+        catch (err) { 
+          showNotification('Failed to delete review', 'error');
+        }
+      }
+    );
   };
 
   // --- Blog handlers ---
   const handleBlogSubmit = async (e) => {
     e.preventDefault();
     if (!blogForm.title || !blogForm.excerpt || !blogForm.content || !blogForm.image) {
-      alert('Please fill in all required fields');
+      showNotification('Please fill in all required fields', 'error');
       return;
     }
     try {
-      if (editingBlog) await updateBlogPost(editingBlog._id, blogForm);
-      else await createBlogPost(blogForm);
-      alert(editingBlog ? 'Blog updated!' : 'Blog published!');
+      if (editingBlog) {
+        await updateBlogPost(editingBlog._id, blogForm);
+        showNotification('Blog updated!', 'success');
+      } else {
+        await createBlogPost(blogForm);
+        showNotification('Blog published!', 'success');
+      }
       setBlogForm({ title: '', excerpt: '', content: '', image: '', author: 'AI Solutions Team', published: true, tags: [], category: 'blog' });
       setBlogImageFile(null);
       setEditingBlog(null);
       await fetchBlogs();
-    } catch (err) { alert('Failed to save blog post'); }
+    } catch (err) { 
+      showNotification('Failed to save blog post', 'error');
+    }
   };
+
   const handleEditBlog = (post) => {
     setEditingBlog(post);
     setBlogForm({
@@ -477,30 +603,57 @@ const AdminDashboard = () => {
     });
     setBlogImageFile(null);
   };
+
   const handleDeleteBlog = async (id) => {
-    if (window.confirm('Delete this blog post?')) {
-      try { await deleteBlogPost(id); await fetchBlogs(); }
-      catch (err) { alert('Failed to delete blog'); }
-    }
+    openConfirmModal(
+      'Delete Blog Post',
+      'Delete this blog post?',
+      async () => {
+        try { 
+          await deleteBlogPost(id); 
+          await fetchBlogs();
+          showNotification('Blog post deleted', 'success');
+        }
+        catch (err) { 
+          showNotification('Failed to delete blog', 'error');
+        }
+      }
+    );
   };
 
   // --- Gallery handlers ---
   const handleGallerySubmit = async (e) => {
     e.preventDefault();
-    if (!galleryForm.title || !galleryForm.image) { alert('Title and Image are required'); return; }
+    if (!galleryForm.title || !galleryForm.image) { 
+      showNotification('Title and Image are required', 'error');
+      return; 
+    }
     try {
       await addGalleryItem(galleryForm);
       setGalleryForm({ title: '', image: '', category: 'event', description: '' });
       setGalleryImageFile(null);
       await fetchGallery();
-      alert('Gallery item added');
-    } catch (err) { alert('Failed to add gallery item'); }
-  };
-  const handleDeleteGallery = async (id) => {
-    if (window.confirm('Delete this gallery item?')) {
-      try { await deleteGalleryItem(id); await fetchGallery(); }
-      catch (err) { alert('Failed to delete gallery item'); }
+      showNotification('Gallery item added', 'success');
+    } catch (err) { 
+      showNotification('Failed to add gallery item', 'error');
     }
+  };
+
+  const handleDeleteGallery = async (id) => {
+    openConfirmModal(
+      'Delete Gallery Item',
+      'Delete this gallery item?',
+      async () => {
+        try { 
+          await deleteGalleryItem(id); 
+          await fetchGallery();
+          showNotification('Gallery item deleted', 'success');
+        }
+        catch (err) { 
+          showNotification('Failed to delete gallery item', 'error');
+        }
+      }
+    );
   };
 
   // --- Contact info handlers ---
@@ -508,58 +661,70 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       await updateContactDetails(contact);
-      alert('Contact details updated!');
-    } catch (err) { alert('Failed to update contact details'); }
+      showNotification('Contact details updated!', 'success');
+    } catch (err) { 
+      showNotification('Failed to update contact details', 'error');
+    }
   };
 
   // --- Event handlers ---
   const handleEventSubmit = async (e) => {
     e.preventDefault();
     if (!eventForm.title || !eventForm.description || !eventForm.date || !eventForm.time || !eventForm.location || !eventForm.image) {
-      alert('Please fill in all required fields');
+      showNotification('Please fill in all required fields', 'error');
       return;
     }
     try {
-      if (editingEvent) await updateEvent(editingEvent._id, eventForm);
-      else await createEvent(eventForm);
-      alert(editingEvent ? 'Event updated' : 'Event created');
+      if (editingEvent) {
+        await updateEvent(editingEvent._id, eventForm);
+        showNotification('Event updated', 'success');
+      } else {
+        await createEvent(eventForm);
+        showNotification('Event created', 'success');
+      }
       setEditingEvent(null);
       setEventForm({ title: '', description: '', date: '', time: '', location: '', image: '', capacity: 100, isActive: true });
       setEventImageFile(null);
       fetchEvents();
-    } catch (err) { alert('Failed to save event'); }
-  };
-  const handleDeleteEvent = async (id) => {
-    if (window.confirm('Delete event?')) {
-      await deleteEvent(id);
-      fetchEvents();
+    } catch (err) { 
+      showNotification('Failed to save event', 'error');
     }
   };
 
-  // --- User Management Handlers (updated to include recipientEmail) ---
+  const handleDeleteEvent = async (id) => {
+    openConfirmModal(
+      'Delete Event',
+      'Delete event?',
+      async () => {
+        await deleteEvent(id);
+        fetchEvents();
+        showNotification('Event deleted', 'success');
+      }
+    );
+  };
+
+  // --- User Management Handlers ---
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     try {
       const payload = { ...userForm };
-      // If recipientEmail is empty, use the login email
       if (!payload.recipientEmail) {
         payload.recipientEmail = payload.email;
       }
       if (editingUser) {
-        // remove password if empty
         if (!payload.password) delete payload.password;
         await updateAdminUser(editingUser._id, payload);
-        alert('User updated successfully. A notification email has been sent.');
+        showNotification('User updated successfully. Notification sent.', 'success');
       } else {
         await createAdminUser(payload);
-        alert('User created successfully. A welcome email has been sent to the recipient.');
+        showNotification('User created successfully. Welcome email sent.', 'success');
       }
       setShowUserModal(false);
       setEditingUser(null);
       setUserForm({ username: '', email: '', recipientEmail: '', password: '', role: 'viewer' });
       fetchAdminUsers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to save user');
+      showNotification(err.response?.data?.message || 'Failed to save user', 'error');
     }
   };
 
@@ -568,7 +733,7 @@ const AdminDashboard = () => {
     setUserForm({
       username: user.username,
       email: user.email,
-      recipientEmail: user.recipientEmail || user.email, // fallback
+      recipientEmail: user.recipientEmail || user.email,
       password: '',
       role: user.role,
     });
@@ -576,15 +741,19 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm('Delete this admin user? This action cannot be undone.')) {
-      try {
-        await deleteAdminUser(id);
-        alert('User deleted. A notification email has been sent.');
-        fetchAdminUsers();
-      } catch (err) {
-        alert(err.response?.data?.message || 'Failed to delete user');
+    openConfirmModal(
+      'Delete User',
+      'Delete this admin user? This action cannot be undone.',
+      async () => {
+        try {
+          await deleteAdminUser(id);
+          showNotification('User deleted. Notification sent.', 'success');
+          fetchAdminUsers();
+        } catch (err) {
+          showNotification(err.response?.data?.message || 'Failed to delete user', 'error');
+        }
       }
-    }
+    );
   };
 
   // --- Chart data aggregation ---
@@ -722,7 +891,40 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - unchanged */}
+      {/* Notification Toast */}
+      {notification.visible && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-lg text-white transition-all duration-300 ${
+          notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {notification.message}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9998] p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">{confirmModal.title}</h3>
+            <p className="text-gray-600 mb-6">{confirmModal.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeConfirmModal}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-2 bg-[#0055FF] text-white rounded hover:bg-blue-700 transition"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar */}
       {sidebarOpen && (
         <aside className="w-56 bg-gray-900 flex flex-col flex-shrink-0">
           <div className="px-5 py-5 border-b border-gray-700">
@@ -785,7 +987,7 @@ const AdminDashboard = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {/* Overview Tab - unchanged */}
+          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -957,7 +1159,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Enquiries Tab - unchanged */}
+          {/* Enquiries Tab */}
           {activeTab === 'enquiries' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
@@ -1007,7 +1209,7 @@ const AdminDashboard = () => {
                       <span className="text-sm font-medium text-blue-700">{selectedEnquiries.length} selected</span>
                       <button onClick={() => handleBulkStatus('processed')} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Mark Processed</button>
                       <button onClick={() => handleBulkStatus('archived')} className="bg-gray-600 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1"><Archive className="w-3.5 h-3.5" /> Archive</button>
-                      <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete All</button>
+                      <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                     </div>
                   )}
                 </div>
@@ -1061,7 +1263,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Full-screen Enquiry Detail Modal - unchanged */}
+          {/* Full-screen Enquiry Detail Modal */}
           {selectedEnquiry && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -1090,7 +1292,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Reviews Tab - unchanged */}
+          {/* Reviews Tab */}
           {activeTab === 'reviews' && (
             <div>
               <div className="mb-6">
@@ -1126,7 +1328,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Blog Tab - unchanged */}
+          {/* Blog Tab */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6"><h2 className="text-2xl font-bold text-gray-900">Blog Management</h2><p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p></div>
@@ -1194,7 +1396,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Events Tab - unchanged */}
+          {/* Events Tab */}
           {activeTab === 'events' && (
             <div>
               <div className="mb-6 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-900">Event Management</h2><p className="text-sm text-gray-500 mt-1">{events.length} total events</p></div></div>
@@ -1242,7 +1444,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Gallery Tab - unchanged */}
+          {/* Gallery Tab */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
@@ -1268,7 +1470,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Chat History Tab - unchanged */}
+          {/* Chat History Tab */}
           {activeTab === 'chat-history' && (
             <div>
               <div className="mb-6">
@@ -1453,14 +1655,14 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Contact Info Tab - unchanged */}
+          {/* Contact Info Tab */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl"><h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2><form onSubmit={handleContactUpdate} className="space-y-4"><input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button></form></div>
           )}
         </main>
       </div>
 
-      {/* User Modal (Add/Edit) - Updated with two email fields */}
+      {/* User Modal (Add/Edit) */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">

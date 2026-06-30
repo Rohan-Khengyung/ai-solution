@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { adminLogin } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -8,42 +7,53 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    const adminData = localStorage.getItem('adminData');
-    if (token && adminData) {
-      setUser({ token, ...JSON.parse(adminData) });
+    try {
+      // Retrieve the token as a string – no JSON.parse needed
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        setUser({ token });
+      }
+    } catch (error) {
+      console.error('Error reading auth token:', error);
+      // If any error occurs, clear localStorage
+      localStorage.removeItem('adminToken');
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const login = async (username, password) => {
-    setError(null);
     try {
-      const res = await adminLogin({ username, password });
-      const { token, admin } = res.data;
-      localStorage.setItem('adminToken', token);
-      localStorage.setItem('adminData', JSON.stringify(admin));
-      setUser({ token, ...admin });
-      return { success: true };
-    } catch (err) {
-      const message = err.response?.data?.message || 'Login failed';
-      setError(message);
-      return { success: false, error: message };
+      // Replace with your actual login API call
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await response.json();
+      if (data.success && data.token) {
+        localStorage.setItem('adminToken', data.token);
+        setUser({ token: data.token });
+        return { success: true };
+      } else {
+        return { success: false, error: data.message || 'Invalid credentials' };
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: 'Network error' };
     }
   };
 
   const logout = () => {
     localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminData');
     setUser(null);
-    setError(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

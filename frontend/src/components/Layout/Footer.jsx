@@ -315,9 +315,6 @@ const Footer = () => {
                 </a>
               )
             )}
-            <Link to="/admin" style={{ color: '#374151', textDecoration: 'none', fontSize: '0.85rem' }}>
-              Admin
-            </Link>
           </div>
         </div>
       </div>
