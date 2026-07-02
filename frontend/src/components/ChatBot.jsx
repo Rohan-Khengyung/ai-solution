@@ -5,26 +5,20 @@ import { MessageCircle, X, Send, Bot, Minimize2 } from 'lucide-react';
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 0,
-      from: 'bot',
-      text: "Hi! I'm Aria, your AI Solutions assistant. How can I help you today? Ask me about our services, pricing, events, or anything else!",
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [unread, setUnread] = useState(1);
+  const [unread, setUnread] = useState(0);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [sessionId, setSessionId] = useState(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Quick replies (predefined user messages)
+  // Quick replies
   const QUICK_REPLIES = ['Our services', 'Book a demo', 'Pricing info', 'Contact us'];
 
-  // Generate or retrieve session ID from localStorage
+  // Generate or retrieve session ID
   useEffect(() => {
     let storedSession = localStorage.getItem('chatSessionId');
     if (!storedSession) {
@@ -34,7 +28,61 @@ const ChatBot = () => {
     setSessionId(storedSession);
   }, []);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Load chat history when sessionId is set
+  useEffect(() => {
+    if (!sessionId) return;
+    const fetchHistory = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/chat/${sessionId}`);
+        if (res.data.success && res.data.data.length > 0) {
+          // Convert stored messages to the format used by the UI
+          const history = [];
+          res.data.data.forEach((entry) => {
+            history.push({
+              id: Date.now() + history.length,
+              from: 'user',
+              text: entry.userMessage,
+              timestamp: new Date(entry.timestamp),
+            });
+            history.push({
+              id: Date.now() + history.length + 1,
+              from: 'bot',
+              text: entry.botResponse,
+              timestamp: new Date(entry.timestamp),
+            });
+          });
+          setMessages(history);
+          setUnread(history.length);
+        } else {
+          // No history, set welcome message
+          setMessages([
+            {
+              id: Date.now(),
+              from: 'bot',
+              text: "Hi! I'm Aria, your AI Solutions assistant. How can I help you today? Ask me about our services, pricing, events, or anything else!",
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+        // Fallback to welcome message
+        setMessages([
+          {
+            id: Date.now(),
+            from: 'bot',
+            text: "Hi! I'm Aria, your AI Solutions assistant. How can I help you today? Ask me about our services, pricing, events, or anything else!",
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setHistoryLoaded(true);
+      }
+    };
+    fetchHistory();
+  }, [sessionId]);
+
+  // Auto-scroll
   useEffect(() => {
     if (isOpen && !minimized) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,7 +97,17 @@ const ChatBot = () => {
     }
   }, [isOpen, minimized]);
 
-  // Store conversation turn (user message + bot response)
+  // Increment unread when a new bot message arrives and chat is closed
+  useEffect(() => {
+    if (messages.length > 0 && !isOpen) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.from === 'bot') {
+        setUnread((prev) => prev + 1);
+      }
+    }
+  }, [messages, isOpen]);
+
+  // Store conversation turn
   const storeConversationTurn = async (userMsg, botMsg) => {
     if (!sessionId) return;
     try {
@@ -57,14 +115,13 @@ const ChatBot = () => {
         sessionId,
         userMessage: userMsg,
         botResponse: botMsg,
-        timestamp: new Date().toISOString()
       });
     } catch (err) {
       console.error('Failed to store chat history:', err);
     }
   };
 
-  // Send message to backend and handle response
+  // Send message
   const sendMessage = async (text) => {
     if (!text.trim() || isLoading) return;
 
@@ -73,16 +130,18 @@ const ChatBot = () => {
       id: Date.now(),
       from: 'user',
       text: userMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    setMessages(prev => [...prev, userMsgObj]);
+    setMessages((prev) => [...prev, userMsgObj]);
     setInput('');
     setIsLoading(true);
     setIsTyping(true);
 
     try {
+      // Call the AI response endpoint
       const response = await axios.post('http://localhost:5000/api/chat', {
-        message: userMessage
+        message: userMessage,
+        sessionId, // optional, in case the backend wants it
       });
 
       let botReply = "I'm having trouble connecting right now. Please try again in a moment.";
@@ -92,25 +151,22 @@ const ChatBot = () => {
         throw new Error(response.data.message || 'Failed to get response');
       }
 
-      // Simulate realistic typing delay
+      // Simulate typing delay
       setTimeout(async () => {
         const botMsgObj = {
           id: Date.now() + 1,
           from: 'bot',
           text: botReply,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
-        setMessages(prev => [...prev, botMsgObj]);
+        setMessages((prev) => [...prev, botMsgObj]);
         setIsTyping(false);
         await storeConversationTurn(userMessage, botReply);
-        if (!isOpen) setUnread(prev => prev + 1);
       }, 700 + Math.random() * 500);
-
     } catch (error) {
       console.error('Chat error:', error);
 
       let errorMessage = "I'm having trouble connecting right now. Please try again in a moment.";
-
       if (error.response?.status === 429) {
         errorMessage = "Our AI assistant is a bit busy right now. Please wait a moment before trying again.";
       } else if (error.response?.status === 401) {
@@ -122,12 +178,11 @@ const ChatBot = () => {
           id: Date.now() + 1,
           from: 'bot',
           text: errorMessage,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
-        setMessages(prev => [...prev, errorMsgObj]);
+        setMessages((prev) => [...prev, errorMsgObj]);
         setIsTyping(false);
         await storeConversationTurn(userMessage, errorMessage);
-        if (!isOpen) setUnread(prev => prev + 1);
       }, 500);
     } finally {
       setIsLoading(false);
@@ -143,7 +198,7 @@ const ChatBot = () => {
     sendMessage(replyText);
   };
 
-  // Format message text: supports **bold** and line breaks
+  // Format message text
   const formatText = (text) => {
     return text.split('\n').map((line, i) => {
       const parts = line.split(/\*\*(.*?)\*\*/g);
@@ -282,6 +337,7 @@ const ChatBot = () => {
         onClick={() => {
           setIsOpen(!isOpen);
           setMinimized(false);
+          if (!isOpen) setUnread(0);
         }}
         className="w-14 h-14 bg-gradient-to-br from-[#0055FF] to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-200 relative"
         style={{ borderRadius: '50%' }}

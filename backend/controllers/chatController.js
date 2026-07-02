@@ -1,60 +1,102 @@
 const ChatHistory = require('../models/ChatHistory');
+const mongoose = require('mongoose');
 
-// Store a conversation turn (public)
+// Store a new chat message
 const storeChatMessage = async (req, res) => {
   try {
-    const { sessionId, userMessage, botResponse, timestamp } = req.body;
+    const { sessionId, userMessage, botResponse } = req.body;
     if (!sessionId || !userMessage || !botResponse) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-    const chatTurn = await ChatHistory.create({
-      sessionId,
-      userMessage,
-      botResponse,
-      timestamp: timestamp || new Date()
-    });
-    res.status(201).json({ success: true, data: chatTurn });
+    const chat = await ChatHistory.create({ sessionId, userMessage, botResponse });
+    res.status(201).json({ success: true, data: chat });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('storeChatMessage error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Admin: Get all chat histories with filters and pagination
-const getChatHistories = async (req, res) => {
+// Get chat histories for a specific session (public)
+const getChatHistoryBySession = async (req, res) => {
   try {
-    const { sessionId, startDate, endDate, page = 1, limit = 20 } = req.query;
-    let filter = {};
-
-    if (sessionId) filter.sessionId = sessionId;
-    if (startDate || endDate) {
-      filter.timestamp = {};
-      if (startDate) filter.timestamp.$gte = new Date(startDate);
-      if (endDate) filter.timestamp.$lte = new Date(endDate);
-    }
-
-    const histories = await ChatHistory.find(filter)
-      .sort({ timestamp: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await ChatHistory.countDocuments(filter);
-
-    // Also get distinct session IDs for filter dropdown
-    const distinctSessions = await ChatHistory.distinct('sessionId');
-
-    res.json({
-      success: true,
-      data: histories,
-      total,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
-      sessions: distinctSessions
-    });
+    const { sessionId } = req.params;
+    const messages = await ChatHistory.find({ sessionId }).sort({ timestamp: 1 });
+    res.json({ success: true, data: messages });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-module.exports = { storeChatMessage, getChatHistories };
+// Admin: Get all sessions (distinct session IDs)
+const getAllSessions = async (req, res) => {
+  try {
+    const sessions = await ChatHistory.distinct('sessionId');
+    const sessionData = await Promise.all(
+      sessions.map(async (sessionId) => {
+        const count = await ChatHistory.countDocuments({ sessionId });
+        const last = await ChatHistory.findOne({ sessionId }).sort({ timestamp: -1 });
+        return {
+          sessionId,
+          messageCount: count,
+          lastMessage: last ? last.timestamp : null,
+        };
+      })
+    );
+    // Sort by last message time descending
+    sessionData.sort((a, b) => (b.lastMessage || 0) - (a.lastMessage || 0));
+    res.json({ success: true, data: sessionData });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Get messages for a specific session
+const getSessionMessages = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const messages = await ChatHistory.find({ sessionId }).sort({ timestamp: 1 });
+    res.json({ success: true, data: messages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Delete entire session
+const deleteSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const result = await ChatHistory.deleteMany({ sessionId });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+    res.json({ success: true, message: `Deleted ${result.deletedCount} messages` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Delete a single message
+const deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid message ID' });
+    }
+    const message = await ChatHistory.findByIdAndDelete(id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+    res.json({ success: true, message: 'Message deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = {
+  storeChatMessage,
+  getChatHistoryBySession,
+  getAllSessions,
+  getSessionMessages,
+  deleteSession,
+  deleteMessage,
+};

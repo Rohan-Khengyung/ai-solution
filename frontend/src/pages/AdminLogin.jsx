@@ -501,7 +501,7 @@ const AdminLogin = () => {
               disabled={loading}
               className="w-full bg-[#0055FF] text-white py-3.5 text-sm font-bold hover:bg-[#0044CC] transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
-              {loading ? 'Signing In...' : 'Sign In to Admin Panel'}
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
         </div>

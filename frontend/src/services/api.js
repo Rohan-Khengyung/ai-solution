@@ -69,9 +69,15 @@ export const getAllRegistrations = () => API.get('/admin/registrations');
 // Delete a registration (admin)
 export const deleteRegistration = (id) => API.delete(`/admin/registrations/${id}`);
 
-// Chat histories (admin)
-export const getChatHistories = (params) => API.get('/admin/chat-histories', { params });
+// CHAT 
+export const sendChatMessage = (data) => API.post('/chat/store', data);
+export const getChatHistory = (sessionId) => API.get(`/chat/${sessionId}`);
 
+// Admin chat management
+export const getAllChatSessions = () => API.get('/admin/chat-sessions');
+export const getSessionMessages = (sessionId) => API.get(`/admin/chat-sessions/${sessionId}/messages`);
+export const deleteSession = (sessionId) => API.delete(`/admin/chat-sessions/${sessionId}`);
+export const deleteChatMessage = (id) => API.delete(`/admin/chat-messages/${id}`);
 // Admin Users
 export const getAdminUsers = () => API.get('/admin/users');
 export const createAdminUser = (data) => API.post('/admin/users', data);
@@ -80,6 +86,27 @@ export const deleteAdminUser = (id) => API.delete(`/admin/users/${id}`);
 
 // EMAIL 
 export const sendCustomEmail = (data) => API.post('/admin/send-email', data);
+
+// SERVICES 
+export const getActiveServices = () => API.get('/services');
+export const getAllServices = () => API.get('/admin/services');
+export const createService = (data) => API.post('/admin/services', data);
+export const updateService = (id, data) => API.put(`/admin/services/${id}`, data);
+export const deleteService = (id) => API.delete(`/admin/services/${id}`);
+
+// TRAININGS 
+export const getActiveTrainings = () => API.get('/trainings');
+export const getAllTrainings = () => API.get('/admin/trainings');
+export const createTraining = (data) => API.post('/admin/trainings', data);
+export const updateTraining = (id, data) => API.put(`/admin/trainings/${id}`, data);
+export const deleteTraining = (id) => API.delete(`/admin/trainings/${id}`);
+
+// INDUSTRIES 
+export const getActiveIndustries = () => API.get('/industries');
+export const getAllIndustries = () => API.get('/admin/industries');
+export const createIndustry = (data) => API.post('/admin/industries', data);
+export const updateIndustry = (id, data) => API.put(`/admin/industries/${id}`, data);
+export const deleteIndustry = (id) => API.delete(`/admin/industries/${id}`);
 
 // Image upload 
 export const uploadImage = (file) => {

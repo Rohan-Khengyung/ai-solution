@@ -5,7 +5,7 @@ import {
   Menu, LayoutDashboard, Inbox, Star, BookOpen, Image, Phone,
   Mail, LogOut, Search, Send, Check, X, Globe, Calendar, Plus, Edit, Trash2, ThumbsUp, ThumbsDown, Archive,
   Clock, MapPin, Users, BarChart3, TrendingUp, Filter, Download, Eye, MessageCircle, ChevronRight, ChevronDown, UserPlus,
-  Upload, FileType
+  Upload, FileType, Layers, GraduationCap, Trash2 as TrashIcon, MessageSquare, Grid
 } from 'lucide-react';
 import {
   getEnquiries,
@@ -31,13 +31,16 @@ import {
   getEventRegistrations,
   getAllRegistrations,
   deleteRegistration,
-  getChatHistories,
   getAdminUsers,
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
   uploadImage,
-  sendCustomEmail
+  sendCustomEmail,
+  getAllChatSessions,
+  getSessionMessages,
+  deleteSession,
+  deleteChatMessage
 } from '../services/api';
 import * as XLSX from 'xlsx';
 import { 
@@ -45,10 +48,16 @@ import {
   ResponsiveContainer, Cell, LineChart, Line, Area, ComposedChart
 } from 'recharts';
 
+// Services management components
+import AdminServicesManagement from '../components/Admin/AdminServicesManagement';
+import AdminTrainingManagement from '../components/Admin/AdminTrainingManagement';
+import AdminIndustryManagement from '../components/Admin/AdminIndustryManagement';
+
 const AdminDashboard = () => {
   const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [serviceSubTab, setServiceSubTab] = useState('services'); // sub‑tab for services group
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [selectedEnquiries, setSelectedEnquiries] = useState([]);
 
@@ -125,12 +134,11 @@ const AdminDashboard = () => {
   const [selectedEventRegistrations, setSelectedEventRegistrations] = useState(null);
   const [allRegistrations, setAllRegistrations] = useState([]);
 
-  const [chatHistories, setChatHistories] = useState([]);
-  const [chatFilterSession, setChatFilterSession] = useState('');
+  // Chat History state
   const [chatSessions, setChatSessions] = useState([]);
-  const [chatPage, setChatPage] = useState(1);
-  const [chatTotalPages, setChatTotalPages] = useState(1);
-  const [expandedSession, setExpandedSession] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionMessages, setSessionMessages] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   const [adminUsers, setAdminUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
@@ -151,7 +159,7 @@ const AdminDashboard = () => {
   // Export format state
   const [exportFormat, setExportFormat] = useState('csv');
 
-  // --- Fetch functions ---
+  // --- Fetch functions (unchanged) ---
   const fetchEnquiries = async () => {
     try {
       const params = {};
@@ -232,19 +240,65 @@ const AdminDashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  const fetchChatHistories = async () => {
+  // Chat functions
+  const fetchChatSessions = async () => {
+    setLoadingSessions(true);
     try {
-      const params = {};
-      if (chatFilterSession) params.sessionId = chatFilterSession;
-      params.page = chatPage;
-      const res = await getChatHistories(params);
-      setChatHistories(res.data.data);
-      setChatSessions(res.data.sessions || []);
-      setChatTotalPages(res.data.pages);
+      const res = await getAllChatSessions();
+      setChatSessions(res.data.data);
     } catch (err) {
       console.error(err);
-      showNotification('Failed to load chat histories', 'error');
+      showNotification('Failed to load chat sessions', 'error');
+    } finally {
+      setLoadingSessions(false);
     }
+  };
+
+  const fetchSessionMessages = async (sessionId) => {
+    try {
+      const res = await getSessionMessages(sessionId);
+      setSessionMessages(res.data.data);
+      setSelectedSession(sessionId);
+    } catch (err) {
+      console.error(err);
+      showNotification('Failed to load messages', 'error');
+    }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    openConfirmModal(
+      'Delete Session',
+      `Delete all messages in this session?`,
+      async () => {
+        try {
+          await deleteSession(sessionId);
+          fetchChatSessions();
+          if (selectedSession === sessionId) {
+            setSelectedSession(null);
+            setSessionMessages([]);
+          }
+          showNotification('Session deleted', 'success');
+        } catch (err) {
+          showNotification('Failed to delete session', 'error');
+        }
+      }
+    );
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    openConfirmModal(
+      'Delete Message',
+      'Delete this message?',
+      async () => {
+        try {
+          await deleteChatMessage(messageId);
+          fetchSessionMessages(selectedSession);
+          showNotification('Message deleted', 'success');
+        } catch (err) {
+          showNotification('Failed to delete message', 'error');
+        }
+      }
+    );
   };
 
   const fetchAdminUsers = async () => {
@@ -442,6 +496,7 @@ const AdminDashboard = () => {
         fetchEvents(),
         fetchContact(),
         fetchAdminUsers(),
+        fetchChatSessions(),
       ]);
     };
     loadAllData();
@@ -455,10 +510,11 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (activeTab === 'chat-history') {
-      fetchChatHistories();
-      setExpandedSession(null);
+      fetchChatSessions();
+      setSelectedSession(null);
+      setSessionMessages([]);
     }
-  }, [activeTab, chatFilterSession, chatPage]);
+  }, [activeTab]);
 
   // --- Enquiry handlers ---
   const handleStatusChange = async (id, status) => {
@@ -495,33 +551,33 @@ const AdminDashboard = () => {
     );
   };
 
-const handleBulkStatus = async (status) => {
-  if (!selectedEnquiries.length) return;
-  openConfirmModal(
-    'Update Selected Enquiries',
-    `Mark ${selectedEnquiries.length} enquiry(ies) as ${status}?`,
-    async () => {
-      for (const id of selectedEnquiries) await updateEnquiryStatus(id, status);
-      fetchEnquiries();
-      setSelectedEnquiries([]);
-      showNotification(`Updated ${selectedEnquiries.length} enquiries to ${status}`, 'success');
-    }
-  );
-};
+  const handleBulkStatus = async (status) => {
+    if (!selectedEnquiries.length) return;
+    openConfirmModal(
+      'Update Selected Enquiries',
+      `Mark ${selectedEnquiries.length} enquiry(ies) as ${status}?`,
+      async () => {
+        for (const id of selectedEnquiries) await updateEnquiryStatus(id, status);
+        fetchEnquiries();
+        setSelectedEnquiries([]);
+        showNotification(`Updated ${selectedEnquiries.length} enquiries to ${status}`, 'success');
+      }
+    );
+  };
 
-const handleBulkDelete = async () => {
-  if (!selectedEnquiries.length) return;
-  openConfirmModal(
-    'Delete Selected Enquiries',
-    `Delete ${selectedEnquiries.length} enquiry(ies) permanently?`,
-    async () => {
-      for (const id of selectedEnquiries) await deleteEnquiry(id);
-      fetchEnquiries();
-      setSelectedEnquiries([]);
-      showNotification(`Deleted ${selectedEnquiries.length} enquiries`, 'success');
-    }
-  );
-};
+  const handleBulkDelete = async () => {
+    if (!selectedEnquiries.length) return;
+    openConfirmModal(
+      'Delete Selected Enquiries',
+      `Delete ${selectedEnquiries.length} enquiry(ies) permanently?`,
+      async () => {
+        for (const id of selectedEnquiries) await deleteEnquiry(id);
+        fetchEnquiries();
+        setSelectedEnquiries([]);
+        showNotification(`Deleted ${selectedEnquiries.length} enquiries`, 'success');
+      }
+    );
+  };
 
   // --- Review handlers ---
   const handleApproveReview = async (id) => {
@@ -860,6 +916,7 @@ const handleBulkDelete = async () => {
     { id: 'blog', label: 'Blog', icon: BookOpen },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'gallery', label: 'Gallery', icon: Image },
+    { id: 'services', label: 'Service Management', icon: Layers }, // Grouped tab
     { id: 'chat-history', label: 'Chat History', icon: MessageCircle },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'contact', label: 'Contact Info', icon: Phone },
@@ -875,19 +932,6 @@ const handleBulkDelete = async () => {
   };
   const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
   const formatDateTime = (dateStr) => new Date(dateStr).toLocaleString();
-
-  const groupBySession = (histories) => {
-    const grouped = new Map();
-    histories.forEach(chat => {
-      if (!grouped.has(chat.sessionId)) {
-        grouped.set(chat.sessionId, []);
-      }
-      grouped.get(chat.sessionId).push(chat);
-    });
-    return grouped;
-  };
-
-  const groupedChats = groupBySession(chatHistories);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -948,7 +992,10 @@ const handleBulkDelete = async () => {
             {navItems.map(({ id, label, icon: Icon, badge }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => {
+                  setActiveTab(id);
+                  if (id === 'services') setServiceSubTab('services');
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-sm text-left transition-colors ${
                   activeTab === id ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
                 }`}
@@ -990,6 +1037,7 @@ const handleBulkDelete = async () => {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div>
+              {/* Same as before – unchanged */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white border border-gray-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Total Enquiries</p>
@@ -1159,9 +1207,10 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Enquiries Tab */}
+          {/* Enquiries Tab - unchanged */}
           {activeTab === 'enquiries' && (
             <div>
+              {/* Same as before */}
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Enquiries Management</h2>
@@ -1209,7 +1258,7 @@ const handleBulkDelete = async () => {
                       <span className="text-sm font-medium text-blue-700">{selectedEnquiries.length} selected</span>
                       <button onClick={() => handleBulkStatus('processed')} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Mark Processed</button>
                       <button onClick={() => handleBulkStatus('archived')} className="bg-gray-600 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1"><Archive className="w-3.5 h-3.5" /> Archive</button>
-                      <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                      <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Delete All</button>
                     </div>
                   )}
                 </div>
@@ -1263,7 +1312,7 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Full-screen Enquiry Detail Modal */}
+          {/* Full-screen Enquiry Detail Modal - unchanged */}
           {selectedEnquiry && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -1292,7 +1341,7 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Reviews Tab */}
+          {/* Reviews Tab - unchanged */}
           {activeTab === 'reviews' && (
             <div>
               <div className="mb-6">
@@ -1328,7 +1377,7 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Blog Tab */}
+          {/* Blog Tab - unchanged */}
           {activeTab === 'blog' && (
             <div>
               <div className="mb-6"><h2 className="text-2xl font-bold text-gray-900">Blog Management</h2><p className="text-sm text-gray-500 mt-1">{blogPosts.length} total · {blogPosts.filter(p => p.published).length} published</p></div>
@@ -1396,7 +1445,7 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Events Tab */}
+          {/* Events Tab - unchanged */}
           {activeTab === 'events' && (
             <div>
               <div className="mb-6 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-900">Event Management</h2><p className="text-sm text-gray-500 mt-1">{events.length} total events</p></div></div>
@@ -1444,7 +1493,7 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Gallery Tab */}
+          {/* Gallery Tab - unchanged */}
           {activeTab === 'gallery' && (
             <div>
               <div className="bg-white border p-5 mb-6"><h2 className="text-xl font-bold mb-4">Add Gallery Item</h2><form onSubmit={handleGallerySubmit} className="space-y-4"><input type="text" placeholder="Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} required className="w-full border p-2" />
@@ -1470,128 +1519,152 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Chat History Tab */}
+          {/* ===== GROUPED SERVICES TAB ===== */}
+          {activeTab === 'services' && (
+            <div>
+              {/* Sub‑navigation */}
+              <div className="mb-6 border-b border-gray-200">
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setServiceSubTab('services')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      serviceSubTab === 'services'
+                        ? 'border-b-2 border-[#0055FF] text-[#0055FF]'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Services
+                  </button>
+                  <button
+                    onClick={() => setServiceSubTab('training')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      serviceSubTab === 'training'
+                        ? 'border-b-2 border-[#0055FF] text-[#0055FF]'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Training
+                  </button>
+                  <button
+                    onClick={() => setServiceSubTab('industries')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      serviceSubTab === 'industries'
+                        ? 'border-b-2 border-[#0055FF] text-[#0055FF]'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Industries
+                  </button>
+                </div>
+              </div>
+
+              {/* Render sub‑content */}
+              {serviceSubTab === 'services' && <AdminServicesManagement />}
+              {serviceSubTab === 'training' && <AdminTrainingManagement />}
+              {serviceSubTab === 'industries' && <AdminIndustryManagement />}
+            </div>
+          )}
+
+          {/* Chat History Tab - unchanged */}
           {activeTab === 'chat-history' && (
             <div>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Chat Conversation History</h2>
-                <p className="text-sm text-gray-500 mt-1">All user interactions with the AI assistant grouped by session</p>
+                <p className="text-sm text-gray-500 mt-1">All user sessions and their conversations with the AI assistant.</p>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Filter by Session</label>
-                  <select
-                    value={chatFilterSession}
-                    onChange={(e) => setChatFilterSession(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"
-                  >
-                    <option value="">All Sessions ({groupedChats.size} sessions)</option>
-                    {chatSessions.map(session => {
-                      const messageCount = groupedChats.get(session)?.length || 0;
-                      return (
-                        <option key={session} value={session}>
-                          {session.substring(0, 20)}... ({messageCount} messages)
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-                <button
-                  onClick={() => setChatFilterSession('')}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Clear Filter
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {Array.from(groupedChats.entries()).map(([sessionId, messages]) => (
-                  <div key={sessionId} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setExpandedSession(expandedSession === sessionId ? null : sessionId)}
-                      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        {expandedSession === sessionId ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
-                        <MessageCircle className="w-5 h-5 text-[#0055FF]" />
-                        <div className="text-left">
-                          <p className="text-sm font-mono text-gray-700">{sessionId}</p>
-                          <p className="text-xs text-gray-400">
-                            {messages.length} messages · Last: {formatDateTime(messages[messages.length - 1]?.timestamp)}
-                          </p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1 bg-white border border-gray-200 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+                  <h3 className="font-semibold text-gray-700 mb-3">Sessions</h3>
+                  {loadingSessions ? (
+                    <p className="text-slate-400 text-center py-4">Loading sessions...</p>
+                  ) : chatSessions.length === 0 ? (
+                    <p className="text-slate-400 text-center py-4">No chat sessions found.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {chatSessions.map((session) => (
+                        <div
+                          key={session.sessionId}
+                          className={`p-3 rounded-lg cursor-pointer transition flex justify-between items-center ${
+                            selectedSession === session.sessionId
+                              ? 'bg-blue-100 border border-blue-300'
+                              : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                          }`}
+                          onClick={() => fetchSessionMessages(session.sessionId)}
+                        >
+                          <div>
+                            <p className="text-sm font-mono text-gray-700 truncate w-40">{session.sessionId}</p>
+                            <p className="text-xs text-gray-400">
+                              {session.messageCount} messages · {session.lastMessage ? new Date(session.lastMessage).toLocaleDateString() : 'No messages'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSession(session.sessionId);
+                            }}
+                            className="text-red-400 hover:text-red-600 transition"
+                            title="Delete Session"
+                          >
+                            <TrashIcon size={16} />
+                          </button>
                         </div>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {new Date(messages[0]?.timestamp).toLocaleDateString()}
-                      </div>
-                    </button>
-
-                    {expandedSession === sessionId && (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-2">Time</th>
-                              <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-2">User Message</th>
-                              <th className="text-left text-xs font-bold uppercase text-gray-500 px-4 py-2">Bot Response</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {messages.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)).map((chat, idx) => (
-                              <tr key={chat._id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                                  {formatDateTime(chat.timestamp)}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-800 max-w-md">
-                                  <div className="bg-blue-50 p-2 rounded">
-                                    {chat.userMessage}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-800 max-w-md">
-                                  <div className="bg-gray-50 p-2 rounded">
-                                    {chat.botResponse}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {groupedChats.size === 0 && (
-                  <div className="text-center text-gray-400 py-12">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>No chat history found.</p>
-                  </div>
-                )}
-              </div>
-
-              {chatTotalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-6">
-                  <button
-                    onClick={() => setChatPage(p => Math.max(1, p - 1))}
-                    disabled={chatPage === 1}
-                    className="px-3 py-1 border rounded disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-3 py-1">Page {chatPage} of {chatTotalPages}</span>
-                  <button
-                    onClick={() => setChatPage(p => Math.min(chatTotalPages, p + 1))}
-                    disabled={chatPage === chatTotalPages}
-                    className="px-3 py-1 border rounded disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+                  {selectedSession ? (
+                    <>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-semibold text-gray-700">Messages</h3>
+                        <span className="text-xs text-gray-400">Session: {selectedSession.substring(0, 12)}...</span>
+                      </div>
+                      {sessionMessages.length === 0 ? (
+                        <p className="text-slate-400 text-center py-4">No messages in this session.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {sessionMessages.map((msg, idx) => (
+                            <div key={msg._id} className="border-b border-gray-100 pb-3 last:border-0">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <div className="bg-blue-50 p-2 rounded mb-2">
+                                    <span className="text-xs font-semibold text-blue-600">User:</span>
+                                    <p className="text-sm text-gray-800">{msg.userMessage}</p>
+                                  </div>
+                                  <div className="bg-gray-50 p-2 rounded">
+                                    <span className="text-xs font-semibold text-gray-600">Bot:</span>
+                                    <p className="text-sm text-gray-800">{msg.botResponse}</p>
+                                  </div>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    {new Date(msg.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteMessage(msg._id)}
+                                  className="text-red-400 hover:text-red-600 transition ml-2 flex-shrink-0"
+                                  title="Delete Message"
+                                >
+                                  <TrashIcon size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-400">
+                      <p>Select a session to view messages</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* User Management Tab */}
+          {/* User Management Tab - unchanged */}
           {activeTab === 'users' && (
             <div>
               <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
@@ -1655,7 +1728,7 @@ const handleBulkDelete = async () => {
             </div>
           )}
 
-          {/* Contact Info Tab */}
+          {/* Contact Info Tab - unchanged */}
           {activeTab === 'contact' && (
             <div className="bg-white border p-6 max-w-2xl"><h2 className="text-xl font-bold mb-4">Update Contact Details (Company Info)</h2><form onSubmit={handleContactUpdate} className="space-y-4"><input type="email" placeholder="Email" value={contact.email} onChange={(e) => setContact({...contact, email: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Phone" value={contact.phone} onChange={(e) => setContact({...contact, phone: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Address" value={contact.address} onChange={(e) => setContact({...contact, address: e.target.value})} required className="w-full border p-2" /><input type="text" placeholder="Hours" value={contact.hours} onChange={(e) => setContact({...contact, hours: e.target.value})} required className="w-full border p-2" /><button type="submit" className="bg-blue-600 text-white px-4 py-2">Save</button></form></div>
           )}

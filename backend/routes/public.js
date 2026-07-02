@@ -7,7 +7,11 @@ const { getGalleryItems } = require('../controllers/galleryController');
 const { getContactDetails } = require('../controllers/contactController');
 const { getActiveEvents, registerForEvent } = require('../controllers/eventController');
 const { validate, enquiryValidation, reviewValidation } = require('../middleware/validation');
-const { storeChatMessage } = require('../controllers/chatController');
+const { storeChatMessage, getChatHistoryBySession } = require('../controllers/chatController');
+const { getActiveServices } = require('../controllers/serviceController');
+const { getActiveTrainings } = require('../controllers/trainingController');
+const { getActiveIndustries } = require('../controllers/industryController');
+
 
 // Enquiries
 router.post('/enquiries', validate(enquiryValidation), submitEnquiry);
@@ -30,7 +34,18 @@ router.get('/contact', getContactDetails);
 router.get('/events', getActiveEvents);
 router.post('/events/register', registerForEvent);
 
-// Chat history 
+// Chat
 router.post('/chat/store', storeChatMessage);
+router.get('/chat/:sessionId', getChatHistoryBySession);
+
+
+// Services
+router.get('/services', getActiveServices);
+
+// Trainings
+router.get('/trainings', getActiveTrainings);
+
+// Industries
+router.get('/industries', getActiveIndustries);
 
 module.exports = router;
