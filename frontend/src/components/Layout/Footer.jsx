@@ -296,8 +296,7 @@ const Footer = () => {
           }}
         >
           <p style={{ color: '#475569', fontSize: '0.85rem' }}>
-            © {year} AI Solutions. All rights reserved. Built with passion in
-            Sunderland, UK.
+            © {year} AI Solutions. All rights reserved.
           </p>
           <div style={{ display: 'flex', gap: '24px' }}>
             {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map(
